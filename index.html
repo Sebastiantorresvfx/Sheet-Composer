@@ -1,0 +1,1812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Sheet Composer</title>
+<meta name="description" content="Compose image sheets with layers, feathering and export">
+<meta name="theme-color" content="#0a0a0c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Composer">
+<link rel="manifest" id="pwa-manifest" href="">
+<!-- Apple touch icons (inline SVG converted to data URL by JS) -->
+<link rel="apple-touch-icon" id="apple-icon" href="">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0c;--panel:#111114;--panel2:#16161a;
+  --border:#222228;--border2:#2e2e38;
+  --accent:#e8ff47;--accent2:#ff4757;--accent3:#47c7ff;
+  --text:#dddde8;--muted:#5a5a6e;--muted2:#3a3a48;
+  --selected:#e8ff4722;--selected-border:#e8ff47;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+
+html,body{height:100%;overflow:hidden;touch-action:none}
+body{
+  font-family:'Space Grotesk',sans-serif;
+  background:var(--bg);color:var(--text);
+  display:flex;flex-direction:column;
+  font-size:13px;
+  padding-top:var(--safe-top);
+}
+
+/* ── TOPBAR ── */
+#topbar{
+  height:48px;background:var(--panel);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 12px;gap:8px;
+  flex-shrink:0;overflow-x:auto;overflow-y:hidden;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch;
+}
+#topbar::-webkit-scrollbar{display:none}
+#topbar h1{
+  font-family:'JetBrains Mono',monospace;font-size:0.75rem;
+  color:var(--accent);letter-spacing:0.08em;white-space:nowrap;flex-shrink:0;
+}
+.tb-sep{width:1px;height:18px;background:var(--border2);flex-shrink:0}
+.tb-btn{
+  font-family:'JetBrains Mono',monospace;font-size:0.63rem;font-weight:500;
+  letter-spacing:0.05em;text-transform:uppercase;
+  padding:6px 11px;border:1px solid var(--border2);
+  background:transparent;color:var(--text);cursor:pointer;
+  white-space:nowrap;flex-shrink:0;min-height:34px;
+  -webkit-tap-highlight-color:transparent;
+  transition:background 0.1s,border-color 0.1s,color 0.1s;
+}
+.tb-btn:active,.tb-btn:hover{border-color:var(--accent);color:var(--accent)}
+.tb-btn.accent{background:var(--accent);color:#000;border-color:var(--accent);font-weight:700}
+.tb-btn.accent:active{background:#f4ff6a}
+.tb-btn.snap-on{border-color:var(--accent3)!important;color:var(--accent3)!important}
+.tb-btn:disabled{opacity:0.3;pointer-events:none}
+#tb-right{margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0}
+#zoom-info{font-family:'JetBrains Mono',monospace;font-size:0.63rem;color:var(--muted);white-space:nowrap}
+
+/* ── LAYOUT ── */
+#app{flex:1;display:flex;overflow:hidden;position:relative}
+
+/* ── CANVAS AREA ── */
+#canvas-area{
+  flex:1;overflow:hidden;position:relative;
+  background:
+    linear-gradient(45deg,#141418 25%,transparent 25%),
+    linear-gradient(-45deg,#141418 25%,transparent 25%),
+    linear-gradient(45deg,transparent 75%,#141418 75%),
+    linear-gradient(-45deg,transparent 75%,#141418 75%);
+  background-size:18px 18px;
+  background-position:0 0,0 9px,9px -9px,-9px 0;
+  background-color:#0d0d10;
+  touch-action:none;
+}
+#canvas-viewport{
+  position:absolute;transform-origin:0 0;
+  /* will be positioned by JS */
+}
+#sheet-canvas{display:block;position:absolute;top:0;left:0;pointer-events:none}
+#interact-layer{position:absolute;top:0;left:0;overflow:visible}
+
+/* Drop hint */
+#canvas-drop{
+  position:absolute;inset:0;pointer-events:none;opacity:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:10px;border:2px dashed var(--border2);transition:opacity 0.2s;
+}
+#canvas-drop.show{opacity:1}
+#canvas-drop.drag-active{border-color:var(--accent)!important;opacity:1}
+#canvas-drop p{color:var(--muted);font-size:0.8rem}
+#canvas-drop .big{font-family:'JetBrains Mono',monospace;font-size:1rem;color:var(--text)}
+
+/* ── SPRITE ── */
+.sprite-el{position:absolute;touch-action:none;user-select:none;-webkit-user-select:none}
+.sprite-el canvas{display:block;pointer-events:none}
+.sprite-border{position:absolute;inset:0;pointer-events:none}
+.sprite-el.selected .sprite-border{outline:2px solid var(--accent)}
+
+/* Resize handles — bigger on touch */
+.resize-handle{
+  position:absolute;width:22px;height:22px;
+  background:var(--accent);border:2px solid #000;
+  border-radius:3px;z-index:20;display:none;
+  touch-action:none;
+}
+.sprite-el.selected .resize-handle{display:block}
+.rh-tl{top:-11px;left:-11px;cursor:nw-resize}
+.rh-tr{top:-11px;right:-11px;cursor:ne-resize}
+.rh-bl{bottom:-11px;left:-11px;cursor:sw-resize}
+.rh-br{bottom:-11px;right:-11px;cursor:se-resize}
+.rh-tc{top:-11px;left:50%;transform:translateX(-50%);cursor:n-resize}
+.rh-bc{bottom:-11px;left:50%;transform:translateX(-50%);cursor:s-resize}
+.rh-ml{top:50%;left:-11px;transform:translateY(-50%);cursor:w-resize}
+.rh-mr{top:50%;right:-11px;transform:translateY(-50%);cursor:e-resize}
+
+/* Snap lines */
+.snap-line{position:absolute;pointer-events:none;z-index:150;background:rgba(71,199,255,0.7)}
+.snap-line.h{left:0;right:0;height:1px}
+.snap-line.v{top:0;bottom:0;width:1px}
+
+/* ── BOTTOM SHEET (mobile panels) ── */
+#bottom-sheet{
+  position:fixed;bottom:0;left:0;right:0;
+  background:var(--panel);
+  border-top:1px solid var(--border2);
+  z-index:500;
+  transform:translateY(100%);
+  transition:transform 0.3s cubic-bezier(.32,.72,0,1);
+  max-height:75vh;
+  display:flex;flex-direction:column;
+  padding-bottom:var(--safe-bottom);
+}
+#bottom-sheet.open{transform:translateY(0)}
+#bottom-sheet-handle{
+  width:36px;height:4px;background:var(--border2);border-radius:2px;
+  margin:10px auto 6px;flex-shrink:0;
+}
+#bottom-sheet-tabs{
+  display:flex;border-bottom:1px solid var(--border);flex-shrink:0;
+}
+.sheet-tab{
+  flex:1;padding:9px 6px;text-align:center;
+  font-family:'JetBrains Mono',monospace;font-size:0.62rem;
+  letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);
+  cursor:pointer;border-bottom:2px solid transparent;
+  -webkit-tap-highlight-color:transparent;transition:color 0.1s;
+}
+.sheet-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+#bottom-sheet-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+
+/* ── LEFT PANEL (desktop sidebar, hidden on mobile) ── */
+#left-panel{
+  width:220px;min-width:220px;
+  background:var(--panel);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow:hidden;
+}
+#right-panel{
+  width:200px;min-width:200px;
+  background:var(--panel);border-left:1px solid var(--border);
+  display:flex;flex-direction:column;overflow:hidden;
+}
+
+@media(max-width:700px){
+  #left-panel,#right-panel{display:none}
+  #bottom-sheet{display:flex}
+  #canvas-area{
+    /* leave space for the floating toolbar at bottom */
+    padding-bottom:60px;
+  }
+}
+@media(min-width:701px){
+  #bottom-sheet{display:none}
+}
+
+/* ── FLOATING ACTION BAR (mobile) ── */
+#fab-bar{
+  display:none;
+  position:fixed;bottom:calc(16px + var(--safe-bottom));left:50%;
+  transform:translateX(-50%);
+  background:var(--panel);border:1px solid var(--border2);
+  border-radius:40px;padding:6px 14px;gap:6px;
+  z-index:400;
+  box-shadow:0 4px 24px rgba(0,0,0,0.6);
+}
+@media(max-width:700px){#fab-bar{display:flex;align-items:center}}
+.fab-btn{
+  font-size:1.1rem;width:40px;height:40px;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:50%;background:transparent;border:none;
+  color:var(--text);cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  transition:background 0.1s;
+}
+.fab-btn:active{background:var(--panel2)}
+.fab-btn.active{color:var(--accent)}
+.fab-sep{width:1px;height:24px;background:var(--border2)}
+
+/* ── PANEL STYLES (shared desktop+mobile) ── */
+.panel-head{
+  padding:10px 14px 8px;
+  font-family:'JetBrains Mono',monospace;font-size:0.62rem;
+  font-weight:500;letter-spacing:0.1em;text-transform:uppercase;
+  color:var(--muted);border-bottom:1px solid var(--border);flex-shrink:0;
+}
+.panel-section{padding:12px 14px;border-bottom:1px solid var(--border)}
+.field-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.field-row:last-child{margin-bottom:0}
+.field-label{font-family:'JetBrains Mono',monospace;font-size:0.62rem;color:var(--muted);width:50px;flex-shrink:0}
+.num-input{
+  font-family:'JetBrains Mono',monospace;font-size:0.72rem;
+  background:var(--bg);border:1px solid var(--border2);
+  color:var(--text);padding:6px 8px;width:70px;outline:none;
+  -moz-appearance:textfield;-webkit-appearance:none;border-radius:0;
+}
+.num-input::-webkit-outer-spin-button,.num-input::-webkit-inner-spin-button{-webkit-appearance:none}
+.num-input:focus{border-color:var(--accent)}
+.field-unit{font-size:0.65rem;color:var(--muted2)}
+.apply-btn,.prop-btn{
+  font-family:'JetBrains Mono',monospace;font-size:0.62rem;
+  letter-spacing:0.05em;text-transform:uppercase;
+  padding:7px 10px;border:1px solid var(--border2);
+  background:transparent;color:var(--text);cursor:pointer;
+  width:100%;margin-top:6px;
+  -webkit-tap-highlight-color:transparent;transition:all 0.1s;
+  min-height:36px;
+}
+.apply-btn:active,.prop-btn:active,
+.apply-btn:hover,.prop-btn:hover{border-color:var(--accent);color:var(--accent)}
+.prop-btn.danger-btn{border-color:#ff475733;color:#ff6b7a}
+.prop-btn.danger-btn:active,.prop-btn.danger-btn:hover{border-color:var(--accent2);background:#ff475714}
+
+/* Color */
+.color-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.color-swatch{
+  width:32px;height:32px;border:1px solid var(--border2);cursor:pointer;
+  flex-shrink:0;position:relative;overflow:hidden;
+}
+.color-swatch input[type=color]{position:absolute;inset:-4px;width:calc(100%+8px);height:calc(100%+8px);opacity:0;cursor:pointer;border:none;padding:0}
+.color-hex{
+  font-family:'JetBrains Mono',monospace;font-size:0.72rem;
+  background:var(--bg);border:1px solid var(--border2);
+  color:var(--text);padding:6px 8px;width:90px;outline:none;border-radius:0;
+}
+.color-hex:focus{border-color:var(--accent)}
+.color-presets{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+.color-preset{
+  width:22px;height:22px;border:1px solid var(--border2);cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+
+/* Slider */
+.slider-wrap{display:flex;align-items:center;gap:8px}
+input[type=range]{
+  -webkit-appearance:none;flex:1;height:4px;
+  background:var(--border2);outline:none;cursor:pointer;border-radius:2px;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:20px;height:20px;
+  background:var(--accent);border-radius:50%;border:2px solid #000;
+}
+input[type=range]::-moz-range-thumb{
+  width:20px;height:20px;background:var(--accent);border-radius:50%;border:2px solid #000;
+}
+.slider-val{font-family:'JetBrains Mono',monospace;font-size:0.67rem;color:var(--accent);min-width:30px;text-align:right}
+
+/* Layer list */
+#layers-head{
+  padding:10px 14px 8px;font-family:'JetBrains Mono',monospace;
+  font-size:0.62rem;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;
+  color:var(--muted);border-bottom:1px solid var(--border);flex-shrink:0;
+  display:flex;align-items:center;justify-content:space-between;
+}
+#layers-list{flex:1;overflow-y:auto;padding:4px 0;-webkit-overflow-scrolling:touch}
+#layers-list::-webkit-scrollbar{width:3px}
+#layers-list::-webkit-scrollbar-thumb{background:var(--border2)}
+.layer-item{
+  display:flex;align-items:center;gap:8px;padding:8px 14px;
+  cursor:pointer;border-left:2px solid transparent;
+  -webkit-tap-highlight-color:transparent;transition:background 0.1s;
+  min-height:48px;
+}
+.layer-item:active,.layer-item:hover{background:var(--panel2)}
+.layer-item.selected{background:var(--selected);border-left-color:var(--selected-border)}
+.layer-thumb{width:36px;height:28px;background:var(--bg);border:1px solid var(--border2);flex-shrink:0;overflow:hidden}
+.layer-thumb canvas{width:100%;height:100%;display:block}
+.layer-info{flex:1;overflow:hidden}
+.layer-name{font-size:0.7rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.layer-dims{font-family:'JetBrains Mono',monospace;font-size:0.6rem;color:var(--muted);margin-top:2px}
+.layer-del{opacity:0.5;color:var(--accent2);cursor:pointer;font-size:0.8rem;padding:4px 6px;flex-shrink:0;-webkit-tap-highlight-color:transparent}
+.layer-order-btns{display:flex;flex-direction:column;gap:2px;flex-shrink:0}
+.ord-btn{font-size:0.65rem;color:var(--muted2);cursor:pointer;padding:3px 4px;line-height:1;-webkit-tap-highlight-color:transparent}
+.ord-btn:active{color:var(--accent)}
+#empty-layers{padding:24px 14px;font-size:0.72rem;color:var(--muted2);text-align:center;line-height:1.7}
+
+/* Props */
+#props-content{padding:12px 14px;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+#props-content::-webkit-scrollbar{width:3px}
+#props-content::-webkit-scrollbar-thumb{background:var(--border2)}
+.prop-section{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+.prop-section:last-child{border-bottom:none}
+.prop-section-title{font-family:'JetBrains Mono',monospace;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.prop-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.prop-row:last-child{margin-bottom:0}
+.prop-label{font-family:'JetBrains Mono',monospace;font-size:0.62rem;color:var(--muted)}
+.prop-input{
+  font-family:'JetBrains Mono',monospace;font-size:0.72rem;
+  background:var(--bg);border:1px solid var(--border2);
+  color:var(--text);padding:6px 8px;width:76px;outline:none;text-align:right;
+  -moz-appearance:textfield;-webkit-appearance:none;border-radius:0;
+}
+.prop-input::-webkit-outer-spin-button,.prop-input::-webkit-inner-spin-button{-webkit-appearance:none}
+.prop-input:focus{border-color:var(--accent)}
+#no-select-msg{padding:24px 14px;font-size:0.72rem;color:var(--muted2);text-align:center;line-height:1.7}
+
+/* ── CROP OVERLAY ── */
+#crop-overlay{
+  position:absolute;inset:0;display:none;
+  pointer-events:none;z-index:200;
+}
+#crop-overlay.active{display:block;pointer-events:all;cursor:crosshair}
+#crop-box{
+  position:absolute;border:2px solid var(--accent);
+  box-shadow:0 0 0 9999px rgba(0,0,0,0.55);
+  cursor:move;overflow:visible;touch-action:none;
+}
+.crop-handle{
+  position:absolute;width:28px;height:28px;
+  background:var(--accent);border:2px solid #000;z-index:10;
+  touch-action:none;
+}
+.crop-handle.nw{top:-14px;left:-14px;cursor:nw-resize;border-radius:3px 0 0 0}
+.crop-handle.ne{top:-14px;right:-14px;cursor:ne-resize;border-radius:0 3px 0 0}
+.crop-handle.sw{bottom:-14px;left:-14px;cursor:sw-resize;border-radius:0 0 0 3px}
+.crop-handle.se{bottom:-14px;right:-14px;cursor:se-resize;border-radius:0 0 3px 0}
+.crop-handle.n{top:-14px;left:50%;transform:translateX(-50%);cursor:n-resize}
+.crop-handle.s{bottom:-14px;left:50%;transform:translateX(-50%);cursor:s-resize}
+.crop-handle.w{top:50%;left:-14px;transform:translateY(-50%);cursor:w-resize}
+.crop-handle.e{top:50%;right:-14px;transform:translateY(-50%);cursor:e-resize}
+#crop-dims{
+  position:absolute;top:-28px;left:0;
+  font-family:'JetBrains Mono',monospace;font-size:0.62rem;
+  color:var(--accent);background:#000000cc;padding:3px 7px;pointer-events:none;
+}
+#crop-controls{
+  position:fixed;bottom:calc(24px + var(--safe-bottom));left:50%;
+  transform:translateX(-50%);display:flex;gap:10px;
+  pointer-events:all;z-index:9998;
+}
+.crop-btn{
+  font-family:'JetBrains Mono',monospace;font-size:0.72rem;font-weight:600;
+  letter-spacing:0.05em;text-transform:uppercase;
+  padding:10px 22px;border:none;cursor:pointer;min-height:44px;
+  -webkit-tap-highlight-color:transparent;
+}
+.crop-btn.apply{background:var(--accent);color:#000}
+.crop-btn.cancel{background:var(--border2);color:var(--text)}
+
+/* ── EXPORT MODAL ── */
+#export-modal{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,0.75);z-index:1000;
+  align-items:flex-end;justify-content:center;
+}
+@media(min-width:701px){#export-modal{align-items:center}}
+#export-modal.show{display:flex}
+#export-modal-box{
+  background:var(--panel);border:1px solid var(--border2);
+  padding:20px;width:100%;max-width:360px;
+  border-radius:16px 16px 0 0;
+  padding-bottom:calc(20px + var(--safe-bottom));
+}
+@media(min-width:701px){#export-modal-box{border-radius:4px;padding-bottom:20px}}
+#export-modal-box h3{
+  font-family:'JetBrains Mono',monospace;font-size:0.75rem;
+  letter-spacing:0.1em;text-transform:uppercase;color:var(--accent);margin-bottom:14px;
+}
+.export-opt{
+  display:flex;align-items:center;gap:12px;padding:12px 14px;
+  border:1px solid var(--border2);margin-bottom:8px;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;transition:border-color 0.1s;
+  min-height:56px;
+}
+.export-opt:active{border-color:var(--accent);background:var(--panel2)}
+.export-opt-icon{font-size:1.4rem;width:32px;text-align:center;flex-shrink:0}
+.export-opt-title{font-family:'JetBrains Mono',monospace;font-size:0.72rem;font-weight:600;color:var(--text)}
+.export-opt-desc{font-size:0.62rem;color:var(--muted);margin-top:2px}
+.modal-cancel{
+  font-family:'JetBrains Mono',monospace;font-size:0.62rem;letter-spacing:0.06em;
+  text-transform:uppercase;padding:10px;border:1px solid var(--border2);
+  background:transparent;color:var(--muted);cursor:pointer;width:100%;
+  margin-top:6px;min-height:44px;-webkit-tap-highlight-color:transparent;
+}
+#jpg-quality-row{display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+#jpg-quality-row label{font-size:0.62rem;color:var(--muted);white-space:nowrap}
+
+/* checkerboard */
+.checker{
+  background-image:linear-gradient(45deg,#1e1e24 25%,transparent 25%),linear-gradient(-45deg,#1e1e24 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#1e1e24 75%),linear-gradient(-45deg,transparent 75%,#1e1e24 75%);
+  background-size:12px 12px;background-position:0 0,0 6px,6px -6px,-6px 0;background-color:#16161c;
+}
+
+/* Toast */
+.toast{
+  position:fixed;bottom:calc(80px + var(--safe-bottom));left:50%;
+  transform:translateX(-50%) translateY(60px);
+  background:var(--accent);color:#000;
+  font-family:'JetBrains Mono',monospace;font-size:0.72rem;font-weight:500;
+  padding:9px 18px;transition:transform 0.3s cubic-bezier(.34,1.56,.64,1);
+  z-index:9999;pointer-events:none;white-space:nowrap;
+}
+.toast.show{transform:translateX(-50%) translateY(0)}
+@media(min-width:701px){.toast{bottom:20px}}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div id="topbar">
+  <h1>⬡ Composer</h1>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" id="import-btn">+ Import</button>
+  <input type="file" id="import-input" accept="image/*" multiple style="position:fixed;top:-9999px;left:-9999px;opacity:0;width:1px;height:1px;">
+  <div class="tb-sep"></div>
+  <button class="tb-btn" id="fit-btn" disabled onclick="fitView()">Fit</button>
+  <button class="tb-btn" id="zoom100-btn" disabled onclick="setZoom(1)">100%</button>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" id="crop-btn" disabled onclick="startCropMode()" title="C">✂</button>
+  <button class="tb-btn" id="snap-btn" disabled onclick="toggleSnap()" title="S">⊹ Snap</button>
+  <div class="tb-sep"></div>
+  <button class="tb-btn danger" id="clear-all-btn" disabled onclick="clearAll()">Clear</button>
+  <div id="tb-right">
+    <span id="zoom-info">—</span>
+    <div class="tb-sep"></div>
+    <button class="tb-btn accent" id="export-btn" disabled onclick="openExportModal()">Export ▾</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="app">
+
+  <!-- LEFT PANEL (desktop) -->
+  <div id="left-panel">
+    <div class="panel-head">Sheet Setup</div>
+    <div class="panel-section">
+      <div class="field-row"><span class="field-label">Width</span><input type="number" class="num-input" id="sheet-w" value="2048" min="1" max="8192"><span class="field-unit">px</span></div>
+      <div class="field-row"><span class="field-label">Height</span><input type="number" class="num-input" id="sheet-h" value="2048" min="1" max="8192"><span class="field-unit">px</span></div>
+      <button class="apply-btn" onclick="applySheetSize()">Apply Size</button>
+      <div style="margin-top:10px">
+        <div class="color-row">
+          <span class="field-label">BG</span>
+          <div class="color-swatch" id="bg-swatch" style="background:#000"><input type="color" id="bg-color-pick" value="#000000" oninput="onBgColorPick(this.value)"></div>
+          <input type="text" class="color-hex" id="bg-hex" value="#000000" oninput="onBgHexInput(this.value)" maxlength="9">
+        </div>
+        <div class="color-presets">
+          <div class="color-preset" onclick="setBgColor('#000000')" style="background:#000" title="Black"></div>
+          <div class="color-preset" onclick="setBgColor('#ffffff')" style="background:#fff" title="White"></div>
+          <div class="color-preset" onclick="setBgColor('#ff000000')" style="background:repeating-conic-gradient(#1e1e24 0% 25%,#2a2a32 0% 50%) 0 0/10px 10px" title="Transparent"></div>
+          <div class="color-preset" onclick="setBgColor('#808080')" style="background:#808080" title="Grey"></div>
+          <div class="color-preset" onclick="setBgColor('#1a1a2e')" style="background:#1a1a2e" title="Dark Blue"></div>
+        </div>
+      </div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-head" style="padding:0 0 6px;border:none;margin-bottom:4px">Edge Feather</div>
+      <div class="slider-wrap">
+        <input type="range" id="feather-slider" min="0" max="64" value="0" oninput="onFeatherChange(this.value)">
+        <span class="slider-val" id="feather-val">0px</span>
+      </div>
+      <div style="font-size:0.62rem;color:var(--muted);margin-top:6px;line-height:1.5">Default for all slices. Override per-slice in Properties.</div>
+    </div>
+    <div class="panel-section" style="font-size:0.62rem;color:var(--muted2);line-height:1.7">
+      <span style="color:var(--accent)">Drag</span> to move &nbsp;·&nbsp; <span style="color:var(--accent)">Handles</span> to resize<br>
+      Resize <span style="color:var(--text);font-family:'JetBrains Mono',monospace">locks aspect</span>. Shift/Alt = free warp.
+    </div>
+    <div id="layers-head">Layers <span id="layer-count" style="color:var(--muted2)">0</span></div>
+    <div id="layers-list"><div id="empty-layers">No slices yet.<br>Import images to begin.</div></div>
+  </div>
+
+  <!-- CANVAS AREA -->
+  <div id="canvas-area">
+    <div id="canvas-viewport">
+      <canvas id="sheet-canvas" class="checker"></canvas>
+      <div id="interact-layer"></div>
+      <div id="crop-overlay">
+        <div id="crop-box">
+          <div id="crop-dims"></div>
+          <div class="crop-handle nw" data-h="nw"></div>
+          <div class="crop-handle ne" data-h="ne"></div>
+          <div class="crop-handle sw" data-h="sw"></div>
+          <div class="crop-handle se" data-h="se"></div>
+          <div class="crop-handle n" data-h="n"></div>
+          <div class="crop-handle s" data-h="s"></div>
+          <div class="crop-handle w" data-h="w"></div>
+          <div class="crop-handle e" data-h="e"></div>
+        </div>
+        <div id="crop-controls">
+          <button class="crop-btn apply" onclick="applyCrop()">✓ Apply Crop</button>
+          <button class="crop-btn cancel" onclick="cancelCrop()">✕ Cancel</button>
+        </div>
+      </div>
+      <div id="canvas-drop"><p class="big">Drop images here</p><p>or tap Import</p></div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL (desktop) -->
+  <div id="right-panel">
+    <div class="panel-head">Properties</div>
+    <div id="props-content">
+      <div id="no-select-msg">Select a slice to edit its properties.</div>
+      <div id="props-body" style="display:none">
+        <div class="prop-section">
+          <div class="prop-section-title">Position</div>
+          <div class="prop-row"><span class="prop-label">X</span><input type="number" class="prop-input" id="prop-x" oninput="applyPropChange()"></div>
+          <div class="prop-row"><span class="prop-label">Y</span><input type="number" class="prop-input" id="prop-y" oninput="applyPropChange()"></div>
+        </div>
+        <div class="prop-section">
+          <div class="prop-section-title">Size <span id="aspect-lock-badge" style="color:var(--accent);font-size:0.58rem;margin-left:4px">⬡ locked</span></div>
+          <div class="prop-row"><span class="prop-label">W</span><input type="number" class="prop-input" id="prop-w" min="1" oninput="applyPropW(this.value)"></div>
+          <div class="prop-row"><span class="prop-label">H</span><input type="number" class="prop-input" id="prop-h" min="1" oninput="applyPropH(this.value)"></div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:6px">
+            <input type="checkbox" id="aspect-lock" checked style="accent-color:var(--accent);width:16px;height:16px;cursor:pointer">
+            <label for="aspect-lock" style="font-family:'JetBrains Mono',monospace;font-size:0.62rem;color:var(--muted);cursor:pointer">Lock aspect ratio</label>
+          </div>
+          <button class="prop-btn" onclick="resetSize()">Reset Original Size</button>
+          <button class="prop-btn" onclick="fitToSheet()">Fit to Sheet</button>
+        </div>
+        <div class="prop-section">
+          <div class="prop-section-title">Opacity</div>
+          <div class="slider-wrap">
+            <input type="range" id="prop-opacity" min="0" max="100" value="100" oninput="applyOpacityChange(this.value)">
+            <span class="slider-val" id="prop-opacity-val">100%</span>
+          </div>
+        </div>
+        <div class="prop-section">
+          <div class="prop-section-title" style="display:flex;align-items:center;justify-content:space-between">
+            Edge Feather
+            <span id="prop-feather-badge" style="display:none;background:var(--accent);color:#000;font-size:0.55rem;padding:1px 5px;font-family:'JetBrains Mono',monospace">CUSTOM</span>
+          </div>
+          <div class="slider-wrap" style="margin-bottom:6px">
+            <input type="range" id="prop-feather-slider" min="0" max="128" value="0" oninput="onLayerFeatherChange(this.value)">
+            <span class="slider-val" id="prop-feather-val">0px</span>
+          </div>
+          <button class="prop-btn" onclick="resetLayerFeather()">Use Global Value</button>
+        </div>
+        <div class="prop-section">
+          <div class="prop-section-title">Actions</div>
+          <button class="prop-btn" onclick="startCropMode()">✂ Crop Slice</button>
+          <button class="prop-btn" onclick="duplicateSelected()">Duplicate</button>
+          <button class="prop-btn" onclick="bringForward()">Bring Forward</button>
+          <button class="prop-btn" onclick="sendBackward()">Send Backward</button>
+          <button class="prop-btn danger-btn" onclick="deleteSelected()">Delete Slice</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- BOTTOM SHEET (mobile) -->
+<div id="bottom-sheet">
+  <div id="bottom-sheet-handle"></div>
+  <div id="bottom-sheet-tabs">
+    <div class="sheet-tab active" data-tab="setup" onclick="switchTab('setup')">Setup</div>
+    <div class="sheet-tab" data-tab="layers" onclick="switchTab('layers')">Layers</div>
+    <div class="sheet-tab" data-tab="props" onclick="switchTab('props')">Properties</div>
+  </div>
+  <div id="bottom-sheet-body">
+
+    <!-- Setup tab -->
+    <div id="tab-setup" class="panel-section">
+      <div class="field-row"><span class="field-label">Width</span><input type="number" class="num-input" id="sheet-w-m" value="2048" min="1" max="8192"><span class="field-unit">px</span></div>
+      <div class="field-row"><span class="field-label">Height</span><input type="number" class="num-input" id="sheet-h-m" value="2048" min="1" max="8192"><span class="field-unit">px</span></div>
+      <button class="apply-btn" onclick="applySheetSizeMobile()">Apply Size</button>
+      <div style="margin-top:12px">
+        <div class="color-row">
+          <span class="field-label">BG</span>
+          <div class="color-swatch" id="bg-swatch-m" style="background:#000"><input type="color" id="bg-color-pick-m" value="#000000" oninput="onBgColorPick(this.value)"></div>
+          <input type="text" class="color-hex" id="bg-hex-m" value="#000000" oninput="onBgHexInput(this.value)" maxlength="9">
+        </div>
+        <div class="color-presets">
+          <div class="color-preset" onclick="setBgColor('#000000')" style="background:#000"></div>
+          <div class="color-preset" onclick="setBgColor('#ffffff')" style="background:#fff"></div>
+          <div class="color-preset" onclick="setBgColor('#ff000000')" style="background:repeating-conic-gradient(#1e1e24 0% 25%,#2a2a32 0% 50%) 0 0/10px 10px"></div>
+          <div class="color-preset" onclick="setBgColor('#808080')" style="background:#808080"></div>
+          <div class="color-preset" onclick="setBgColor('#1a1a2e')" style="background:#1a1a2e"></div>
+        </div>
+      </div>
+      <div style="margin-top:12px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:0.62rem;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.08em">Edge Feather</div>
+        <div class="slider-wrap">
+          <input type="range" id="feather-slider-m" min="0" max="64" value="0" oninput="onFeatherChange(this.value);syncMobileFeather(this.value)">
+          <span class="slider-val" id="feather-val-m">0px</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layers tab -->
+    <div id="tab-layers" style="display:none">
+      <div id="layers-list-m" style="padding:4px 0"></div>
+    </div>
+
+    <!-- Props tab -->
+    <div id="tab-props" style="display:none;padding:12px 14px">
+      <div id="no-select-msg-m" style="padding:16px 0;font-size:0.72rem;color:var(--muted2);text-align:center;line-height:1.7">Select a slice to edit.</div>
+      <div id="props-body-m" style="display:none">
+        <div class="prop-section">
+          <div class="prop-section-title">Position</div>
+          <div class="prop-row"><span class="prop-label">X</span><input type="number" class="prop-input" id="prop-x-m" oninput="applyPropChangeMobile()"></div>
+          <div class="prop-row"><span class="prop-label">Y</span><input type="number" class="prop-input" id="prop-y-m" oninput="applyPropChangeMobile()"></div>
+        </div>
+        <div class="prop-section">
+          <div class="prop-section-title">Size</div>
+          <div class="prop-row"><span class="prop-label">W</span><input type="number" class="prop-input" id="prop-w-m" min="1" oninput="applyPropWM(this.value)"></div>
+          <div class="prop-row"><span class="prop-label">H</span><input type="number" class="prop-input" id="prop-h-m" min="1" oninput="applyPropHM(this.value)"></div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:6px">
+            <input type="checkbox" id="aspect-lock-m" checked style="accent-color:var(--accent);width:16px;height:16px">
+            <label for="aspect-lock-m" style="font-family:'JetBrains Mono',monospace;font-size:0.62rem;color:var(--muted)">Lock aspect</label>
+          </div>
+          <button class="prop-btn" onclick="resetSize()">Reset Size</button>
+          <button class="prop-btn" onclick="fitToSheet()">Fit to Sheet</button>
+        </div>
+        <div class="prop-section">
+          <div class="prop-section-title">Opacity</div>
+          <div class="slider-wrap">
+            <input type="range" id="prop-opacity-m" min="0" max="100" value="100" oninput="applyOpacityChangeMobile(this.value)">
+            <span class="slider-val" id="prop-opacity-val-m">100%</span>
+          </div>
+        </div>
+        <div class="prop-section">
+          <div class="prop-section-title" style="display:flex;align-items:center;justify-content:space-between">
+            Feather <span id="prop-feather-badge-m" style="display:none;background:var(--accent);color:#000;font-size:0.55rem;padding:1px 5px">CUSTOM</span>
+          </div>
+          <div class="slider-wrap" style="margin-bottom:6px">
+            <input type="range" id="prop-feather-slider-m" min="0" max="128" value="0" oninput="onLayerFeatherChangeMobile(this.value)">
+            <span class="slider-val" id="prop-feather-val-m">0px</span>
+          </div>
+          <button class="prop-btn" onclick="resetLayerFeather()">Use Global</button>
+        </div>
+        <div class="prop-section">
+          <div class="prop-section-title">Actions</div>
+          <button class="prop-btn" onclick="startCropMode()">✂ Crop</button>
+          <button class="prop-btn" onclick="duplicateSelected()">Duplicate</button>
+          <button class="prop-btn" onclick="bringForward()">Bring Forward</button>
+          <button class="prop-btn" onclick="sendBackward()">Send Backward</button>
+          <button class="prop-btn danger-btn" onclick="deleteSelected()">Delete</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- FAB (mobile floating toolbar) -->
+<div id="fab-bar">
+  <button class="fab-btn" title="Import" onclick="document.getElementById('import-input').click()">📥</button>
+  <div class="fab-sep"></div>
+  <button class="fab-btn" id="fab-snap" title="Snap" onclick="toggleSnap()">⊹</button>
+  <button class="fab-btn" id="fab-crop" title="Crop" onclick="startCropMode()">✂</button>
+  <div class="fab-sep"></div>
+  <button class="fab-btn" title="Panel" onclick="toggleBottomSheet()">☰</button>
+  <div class="fab-sep"></div>
+  <button class="fab-btn" title="Export" onclick="openExportModal()" style="color:var(--accent)">⬆</button>
+</div>
+
+<!-- EXPORT MODAL -->
+<div id="export-modal">
+  <div id="export-modal-box">
+    <h3>Export Sheet</h3>
+    <div class="export-opt" onclick="doExport('png')">
+      <div class="export-opt-icon">🖼</div>
+      <div><div class="export-opt-title">PNG</div><div class="export-opt-desc">Lossless · supports transparency</div></div>
+    </div>
+    <div class="export-opt" onclick="doExport('jpg')">
+      <div class="export-opt-icon">📷</div>
+      <div><div class="export-opt-title">JPEG</div><div class="export-opt-desc">Compressed · smaller file size</div></div>
+    </div>
+    <div class="export-opt" onclick="doExport('pdf')">
+      <div class="export-opt-icon">📄</div>
+      <div><div class="export-opt-title">PDF</div><div class="export-opt-desc">Embedded layers · vector page</div></div>
+    </div>
+    <div id="jpg-quality-row">
+      <label>JPEG Quality</label>
+      <input type="range" id="jpg-quality" min="1" max="100" value="92" style="flex:1;height:4px" oninput="document.getElementById('jpg-quality-val').textContent=this.value+'%'">
+      <span id="jpg-quality-val" style="font-family:'JetBrains Mono',monospace;font-size:0.67rem;color:var(--accent);min-width:32px">92%</span>
+    </div>
+    <button class="modal-cancel" onclick="closeExportModal()">Cancel</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+const sheetCanvas   = document.getElementById('sheet-canvas');
+const sheetCtx      = sheetCanvas.getContext('2d');
+const interactLayer = document.getElementById('interact-layer');
+const canvasArea    = document.getElementById('canvas-area');
+const viewport      = document.getElementById('canvas-viewport');
+const importInput   = document.getElementById('import-input');
+
+let sheetW = 2048, sheetH = 2048;
+let bgColor = '#000000', transparent = false;
+let viewScale = 1, panX = 40, panY = 40;
+let sprites = [], selectedId = null, feather = 0, idCounter = 0;
+let snapEnabled = false, snapLineH = null, snapLineV = null;
+let cropActive = false, cropSprite = null, cropRegion = {};
+
+// Touch pan/zoom state
+let touchState = null; // { type: 'pan'|'pinch', ... }
+
+const isMobile = () => window.innerWidth <= 700;
+
+// ═══════════════════════════════════════════════════════════
+// INIT / SHEET
+// ═══════════════════════════════════════════════════════════
+function initSheet() {
+  sheetCanvas.width  = sheetW;
+  sheetCanvas.height = sheetH;
+  interactLayer.style.width  = sheetW + 'px';
+  interactLayer.style.height = sheetH + 'px';
+  viewport.style.width  = sheetW + 'px';
+  viewport.style.height = sheetH + 'px';
+  drawSheet();
+  updateDropZone();
+}
+
+function applySheetSize() {
+  const w = parseInt(document.getElementById('sheet-w').value) || 2048;
+  const h = parseInt(document.getElementById('sheet-h').value) || 2048;
+  sheetW = Math.max(1, Math.min(8192, w));
+  sheetH = Math.max(1, Math.min(8192, h));
+  document.getElementById('sheet-w').value = sheetW;
+  document.getElementById('sheet-h').value = sheetH;
+  initSheet(); toast(`Sheet ${sheetW}×${sheetH}`);
+}
+function applySheetSizeMobile() {
+  const w = parseInt(document.getElementById('sheet-w-m').value) || 2048;
+  const h = parseInt(document.getElementById('sheet-h-m').value) || 2048;
+  document.getElementById('sheet-w').value = w;
+  document.getElementById('sheet-h').value = h;
+  applySheetSize();
+}
+
+function drawSheet() {
+  sheetCtx.clearRect(0, 0, sheetW, sheetH);
+  if (!transparent) { sheetCtx.fillStyle = bgColor; sheetCtx.fillRect(0, 0, sheetW, sheetH); }
+}
+
+function updateDropZone() {
+  document.getElementById('canvas-drop').classList.toggle('show', sprites.length === 0);
+}
+
+// ═══════════════════════════════════════════════════════════
+// VIEWPORT TRANSFORM (pan + zoom with CSS transform)
+// ═══════════════════════════════════════════════════════════
+function applyViewport() {
+  viewport.style.transform = `translate(${panX}px,${panY}px) scale(${viewScale})`;
+  document.getElementById('zoom-info').textContent = Math.round(viewScale * 100) + '%';
+}
+
+function setZoom(scale, cx, cy) {
+  const newScale = Math.max(0.05, Math.min(8, scale));
+  if (cx !== undefined && cy !== undefined) {
+    // zoom toward point (cx,cy) in screen space
+    const ratio = newScale / viewScale;
+    panX = cx - ratio * (cx - panX);
+    panY = cy - ratio * (cy - panY);
+  }
+  viewScale = newScale;
+  applyViewport();
+}
+
+function fitView() {
+  const pad = 48;
+  const aw = canvasArea.clientWidth - pad * 2;
+  const ah = canvasArea.clientHeight - pad * 2;
+  viewScale = Math.min(1, aw / sheetW, ah / sheetH);
+  panX = Math.round((canvasArea.clientWidth  - sheetW * viewScale) / 2);
+  panY = Math.round((canvasArea.clientHeight - sheetH * viewScale) / 2);
+  applyViewport();
+}
+
+// ── Mouse wheel zoom ──
+canvasArea.addEventListener('wheel', e => {
+  if (e.ctrlKey || e.metaKey) {
+    e.preventDefault();
+    const rect = canvasArea.getBoundingClientRect();
+    setZoom(viewScale * (e.deltaY > 0 ? 0.9 : 1.1), e.clientX - rect.left, e.clientY - rect.top);
+  }
+}, { passive: false });
+
+// ── Canvas pan (mouse middle button or two-finger on desktop) ──
+let panDrag = null;
+canvasArea.addEventListener('mousedown', e => {
+  if (e.button === 1 || (e.button === 0 && e.altKey && e.target === canvasArea)) {
+    panDrag = { sx: e.clientX, sy: e.clientY, px: panX, py: panY };
+    e.preventDefault();
+  }
+  if (e.button === 0 && e.target === interactLayer) deselectAll();
+});
+document.addEventListener('mousemove', e => {
+  if (!panDrag) return;
+  panX = panDrag.px + (e.clientX - panDrag.sx);
+  panY = panDrag.py + (e.clientY - panDrag.sy);
+  applyViewport();
+});
+document.addEventListener('mouseup', e => { if (e.button === 1 || panDrag) panDrag = null; });
+
+// ── Touch: pan + pinch-zoom on canvas background; sprite drag on sprites ──
+canvasArea.addEventListener('touchstart', e => {
+  if (cropActive) return; // handled separately
+  if (e.target !== canvasArea && e.target !== viewport &&
+      e.target !== sheetCanvas && e.target !== interactLayer) return;
+  // Background touched → pan or pinch
+  if (e.touches.length === 1) {
+    touchState = { type:'pan', t0: e.touches[0].identifier,
+      sx: e.touches[0].clientX, sy: e.touches[0].clientY, px: panX, py: panY };
+    deselectAll();
+  } else if (e.touches.length === 2) {
+    const t0 = e.touches[0], t1 = e.touches[1];
+    const dist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+    const mx = (t0.clientX + t1.clientX) / 2;
+    const my = (t0.clientY + t1.clientY) / 2;
+    const rect = canvasArea.getBoundingClientRect();
+    touchState = { type:'pinch', dist0: dist, scale0: viewScale,
+      mx: mx - rect.left, my: my - rect.top, px: panX, py: panY };
+  }
+  e.preventDefault();
+}, { passive: false });
+
+canvasArea.addEventListener('touchmove', e => {
+  if (!touchState || cropActive) return;
+  e.preventDefault();
+  if (touchState.type === 'pan' && e.touches.length === 1) {
+    const t = e.touches[0];
+    panX = touchState.px + (t.clientX - touchState.sx);
+    panY = touchState.py + (t.clientY - touchState.sy);
+    applyViewport();
+  } else if (touchState.type === 'pinch' && e.touches.length === 2) {
+    const t0 = e.touches[0], t1 = e.touches[1];
+    const dist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+    const ratio = dist / touchState.dist0;
+    const newScale = Math.max(0.05, Math.min(8, touchState.scale0 * ratio));
+    const scaleRatio = newScale / viewScale;
+    panX = touchState.mx - scaleRatio * (touchState.mx - touchState.px);
+    panY = touchState.my - scaleRatio * (touchState.my - touchState.py);
+    viewScale = newScale;
+    applyViewport();
+  }
+}, { passive: false });
+
+canvasArea.addEventListener('touchend', e => {
+  if (e.touches.length === 0) touchState = null;
+}, { passive: true });
+
+// ═══════════════════════════════════════════════════════════
+// BG COLOR
+// ═══════════════════════════════════════════════════════════
+function setBgColor(hex) {
+  if (hex === '#ff000000') {
+    transparent = true; bgColor = '#000000';
+    const swatch = 'repeating-conic-gradient(#1e1e24 0% 25%,#2a2a32 0% 50%) 0 0/10px 10px';
+    document.getElementById('bg-swatch').style.background = swatch;
+    document.getElementById('bg-hex').value = 'transparent';
+    document.getElementById('bg-color-pick').value = '#000000';
+    document.getElementById('bg-swatch-m').style.background = swatch;
+    document.getElementById('bg-hex-m').value = 'transparent';
+  } else {
+    transparent = false; bgColor = hex;
+    ['bg-swatch','bg-swatch-m'].forEach(id => document.getElementById(id).style.background = hex);
+    ['bg-hex','bg-hex-m'].forEach(id => document.getElementById(id).value = hex);
+    ['bg-color-pick','bg-color-pick-m'].forEach(id => document.getElementById(id).value = hex);
+  }
+  drawSheet();
+}
+function onBgColorPick(v) { setBgColor(v); }
+function onBgHexInput(v) { if (/^#[0-9a-fA-F]{6}$/.test(v.trim())) setBgColor(v.trim()); }
+
+// ═══════════════════════════════════════════════════════════
+// IMPORT
+// ═══════════════════════════════════════════════════════════
+document.getElementById('import-btn').addEventListener('click', () => importInput.click());
+document.getElementById('import-btn').addEventListener('touchend', e => { e.preventDefault(); importInput.click(); });
+importInput.addEventListener('change', e => {
+  const files = e.target.files;
+  // Clear value first so same file can be re-imported; copy FileList before clearing
+  const filesCopy = [...files];
+  importInput.value = '';
+  loadFiles(filesCopy);
+});
+canvasArea.addEventListener('dragover', e => { e.preventDefault(); document.getElementById('canvas-drop').classList.add('drag-active'); });
+canvasArea.addEventListener('dragleave', () => document.getElementById('canvas-drop').classList.remove('drag-active'));
+canvasArea.addEventListener('drop', e => { e.preventDefault(); document.getElementById('canvas-drop').classList.remove('drag-active'); loadFiles(e.dataTransfer.files); });
+
+function loadFiles(files) {
+  Array.from(files).forEach(file => {
+    if (!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onerror = () => toast('Failed to read: ' + file.name);
+    reader.onload = ev => {
+      const dataURL = ev.target.result;
+      const img = new Image();
+      img.onerror = () => toast('Failed to load: ' + file.name);
+      img.onload = () => {
+        const id = ++idCounter;
+        const offset = (sprites.length % 6) * 20;
+        // Cap initial size to sheet dimensions so huge images don't overflow
+        const scale = Math.min(1, sheetW / img.width, sheetH / img.height);
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const sp = { id, name: file.name.replace(/\.[^.]+$/, ''), img,
+          x: 40 + offset, y: 40 + offset, w, h,
+          origW: img.width, origH: img.height, opacity: 1, feather: null };
+        sprites.push(sp);
+        createSpriteEl(sp);
+        addLayerItem(sp);
+        addMobileLayerItem(sp);
+        updateControls();
+        updateDropZone();
+        selectSprite(id);
+        toast(sp.name + ' loaded');
+      };
+      img.src = dataURL;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// SPRITE ELEMENT
+// ═══════════════════════════════════════════════════════════
+function createSpriteEl(sp) {
+  const el = document.createElement('div');
+  el.className = 'sprite-el';
+  el.dataset.id = sp.id;
+  Object.assign(el.style, { left: sp.x+'px', top: sp.y+'px', width: sp.w+'px', height: sp.h+'px', opacity: sp.opacity });
+
+  const c = document.createElement('canvas');
+  renderSpriteCanvas(c, sp, 0);
+  el.appendChild(c);
+  sp.canvas = c;
+
+  const border = document.createElement('div');
+  border.className = 'sprite-border';
+  el.appendChild(border);
+
+  ['tl','tr','bl','br','tc','bc','ml','mr'].forEach(pos => {
+    const h = document.createElement('div');
+    h.className = `resize-handle rh-${pos}`;
+    h.dataset.handle = pos;
+    // Both mouse and touch
+    h.addEventListener('mousedown', e => startResize(e, sp, pos));
+    h.addEventListener('touchstart', e => startResizeTouch(e, sp, pos), { passive: false });
+    el.appendChild(h);
+  });
+
+  el.addEventListener('mousedown', e => {
+    if (e.target.classList.contains('resize-handle')) return;
+    e.stopPropagation(); selectSprite(sp.id); startDrag(e, sp);
+  });
+  el.addEventListener('touchstart', e => {
+    if (e.target.classList.contains('resize-handle')) return;
+    e.stopPropagation(); e.preventDefault();
+    selectSprite(sp.id); startDragTouch(e, sp);
+  }, { passive: false });
+
+  interactLayer.appendChild(el);
+  sp.el = el;
+}
+
+function renderSpriteCanvas(c, sp, featherAmt) {
+  const W = sp.w, H = sp.h;
+  c.width = W; c.height = H;
+  c.style.width = W + 'px'; c.style.height = H + 'px';
+  const ctx2 = c.getContext('2d');
+  ctx2.clearRect(0, 0, W, H);
+  ctx2.drawImage(sp.img, 0, 0, W, H);
+  if (featherAmt > 0 && W > 1 && H > 1) {
+    const f = Math.min(featherAmt, Math.floor(W/2), Math.floor(H/2));
+    if (f < 1) return;
+    const imgData = ctx2.getImageData(0, 0, W, H);
+    const d = imgData.data;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const dist = Math.min(x, y, W-1-x, H-1-y);
+      if (dist < f) {
+        const t = dist/f, smooth = t*t*(3-2*t);
+        d[(y*W+x)*4+3] = Math.round(d[(y*W+x)*4+3]*smooth);
+      }
+    }
+    ctx2.putImageData(imgData, 0, 0);
+  }
+}
+
+function updateSpriteEl(sp) {
+  Object.assign(sp.el.style, { left: sp.x+'px', top: sp.y+'px', width: sp.w+'px', height: sp.h+'px', opacity: sp.opacity });
+  renderSpriteCanvas(sp.canvas, sp, getEffectiveFeather(sp));
+}
+
+// ── Helper: pointer pos in image-space (works for mouse and touch) ──
+function clientToImage(clientX, clientY) {
+  const rect = canvasArea.getBoundingClientRect();
+  return {
+    x: (clientX - rect.left - panX) / viewScale,
+    y: (clientY - rect.top  - panY) / viewScale
+  };
+}
+
+// ═══════════════════════════════════════════════════════════
+// DRAG (mouse)
+// ═══════════════════════════════════════════════════════════
+function startDrag(e, sp) {
+  e.preventDefault();
+  const orig = clientToImage(e.clientX, e.clientY);
+  const origX = sp.x, origY = sp.y;
+  function onMove(ev) {
+    const cur = clientToImage(ev.clientX, ev.clientY);
+    const raw = { x: Math.round(origX + cur.x - orig.x), y: Math.round(origY + cur.y - orig.y) };
+    const snapped = getSnapped(sp, raw.x, raw.y);
+    sp.x = snapped.x; sp.y = snapped.y;
+    sp.el.style.left = sp.x+'px'; sp.el.style.top = sp.y+'px';
+    syncProps();
+  }
+  function onUp() { hideSnapLines(); document.removeEventListener('mousemove',onMove); document.removeEventListener('mouseup',onUp); syncProps(); }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+// ═══════════════════════════════════════════════════════════
+// DRAG (touch)
+// ═══════════════════════════════════════════════════════════
+function startDragTouch(e, sp) {
+  if (e.touches.length > 1) return;
+  const t0 = e.touches[0];
+  const orig = clientToImage(t0.clientX, t0.clientY);
+  const origX = sp.x, origY = sp.y;
+
+  function onMove(ev) {
+    if (ev.touches.length !== 1) return;
+    const t = ev.touches[0];
+    const cur = clientToImage(t.clientX, t.clientY);
+    const raw = { x: Math.round(origX + cur.x - orig.x), y: Math.round(origY + cur.y - orig.y) };
+    const snapped = getSnapped(sp, raw.x, raw.y);
+    sp.x = snapped.x; sp.y = snapped.y;
+    sp.el.style.left = sp.x+'px'; sp.el.style.top = sp.y+'px';
+    syncProps();
+  }
+  function onEnd() {
+    hideSnapLines(); syncProps();
+    document.removeEventListener('touchmove', onMove);
+    document.removeEventListener('touchend', onEnd);
+  }
+  document.addEventListener('touchmove', onMove, { passive: false });
+  document.addEventListener('touchend', onEnd, { passive: true });
+}
+
+// ═══════════════════════════════════════════════════════════
+// RESIZE (mouse)
+// ═══════════════════════════════════════════════════════════
+function startResize(e, sp, handle) {
+  e.preventDefault(); e.stopPropagation();
+  const start = clientToImage(e.clientX, e.clientY);
+  const origX = sp.x, origY = sp.y, origW = sp.w, origH = sp.h;
+  const aspect = origW / origH;
+
+  function onMove(ev) {
+    const cur = clientToImage(ev.clientX, ev.clientY);
+    applyResize(sp, handle, cur.x - start.x, cur.y - start.y, origX, origY, origW, origH, aspect, ev.shiftKey || ev.altKey);
+    updateSpriteEl(sp); syncProps(); updateLayerDims(sp);
+    document.getElementById('zoom-info').textContent = (ev.shiftKey||ev.altKey)?'FREE ⚠':Math.round(viewScale*100)+'%';
+  }
+  function onUp() {
+    document.getElementById('zoom-info').textContent = Math.round(viewScale*100)+'%';
+    document.removeEventListener('mousemove',onMove); document.removeEventListener('mouseup',onUp);
+  }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+// ═══════════════════════════════════════════════════════════
+// RESIZE (touch)
+// ═══════════════════════════════════════════════════════════
+function startResizeTouch(e, sp, handle) {
+  e.preventDefault(); e.stopPropagation();
+  if (e.touches.length > 1) return;
+  const t0 = e.touches[0];
+  const start = clientToImage(t0.clientX, t0.clientY);
+  const origX = sp.x, origY = sp.y, origW = sp.w, origH = sp.h;
+  const aspect = origW / origH;
+
+  function onMove(ev) {
+    if (ev.touches.length !== 1) return;
+    const t = ev.touches[0];
+    const cur = clientToImage(t.clientX, t.clientY);
+    applyResize(sp, handle, cur.x - start.x, cur.y - start.y, origX, origY, origW, origH, aspect, false);
+    updateSpriteEl(sp); syncProps(); updateLayerDims(sp);
+  }
+  function onEnd() {
+    document.removeEventListener('touchmove', onMove);
+    document.removeEventListener('touchend', onEnd);
+  }
+  document.addEventListener('touchmove', onMove, { passive: false });
+  document.addEventListener('touchend', onEnd, { passive: true });
+}
+
+// ── Shared resize logic ──
+function applyResize(sp, handle, dx, dy, origX, origY, origW, origH, aspect, freeWarp) {
+  let nx = origX, ny = origY, nw = origW, nh = origH;
+  if (freeWarp) {
+    if (handle.includes('r')) nw = Math.max(10, origW+dx);
+    if (handle.includes('l')) { nw = Math.max(10, origW-dx); nx = origX+origW-nw; }
+    if (handle.includes('b')) nh = Math.max(10, origH+dy);
+    if (handle.includes('t')) { nh = Math.max(10, origH-dy); ny = origY+origH-nh; }
+    if (handle==='tc'||handle==='bc') nw = origW;
+    if (handle==='ml'||handle==='mr') nh = origH;
+  } else {
+    let delta;
+    if (handle==='ml'||handle==='mr') { delta=handle==='mr'?dx:-dx; nw=Math.max(10,origW+delta); nh=Math.max(10,nw/aspect); }
+    else if (handle==='tc'||handle==='bc') { delta=handle==='bc'?dy:-dy; nh=Math.max(10,origH+delta); nw=Math.max(10,nh*aspect); }
+    else {
+      const dxa=Math.abs(dx),dya=Math.abs(dy);
+      if (dxa>=dya) { const sign=handle.includes('r')?1:-1; nw=Math.max(10,origW+sign*dx); }
+      else { const sign=handle.includes('b')?1:-1; nh=Math.max(10,origH+sign*dy); nw=Math.max(10,nh*aspect); }
+      nh=Math.max(10,nw/aspect);
+    }
+    if (handle.includes('l')) nx=origX+origW-nw;
+    if (handle.includes('t')) ny=origY+origH-nh;
+    if (handle==='tc') ny=origY+origH-nh;
+    if (handle==='ml') nx=origX+origW-nw;
+  }
+  sp.x=Math.round(nx); sp.y=Math.round(ny); sp.w=Math.round(nw); sp.h=Math.round(nh);
+}
+
+// ═══════════════════════════════════════════════════════════
+// SELECTION
+// ═══════════════════════════════════════════════════════════
+function selectSprite(id) {
+  if (selectedId === id) return;
+  if (selectedId) {
+    const prev = sprites.find(s => s.id === selectedId);
+    if (prev) prev.el.classList.remove('selected');
+    document.querySelectorAll(`.layer-item[data-id="${selectedId}"]`).forEach(e => e.classList.remove('selected'));
+  }
+  selectedId = id;
+  const sp = sprites.find(s => s.id === id);
+  if (sp) {
+    sp.el.classList.add('selected');
+    sprites.forEach(s => s.el.style.zIndex = '');
+    sp.el.style.zIndex = '100';
+    document.querySelectorAll(`.layer-item[data-id="${id}"]`).forEach(e => e.classList.add('selected'));
+  }
+  updateProps();
+  if (isMobile() && sp) { switchTab('props'); openBottomSheet(); }
+}
+
+function deselectAll() {
+  if (selectedId) {
+    const sp = sprites.find(s => s.id === selectedId);
+    if (sp) sp.el.classList.remove('selected');
+    document.querySelectorAll(`.layer-item[data-id="${selectedId}"]`).forEach(e => e.classList.remove('selected'));
+  }
+  selectedId = null;
+  updateProps();
+}
+
+// ═══════════════════════════════════════════════════════════
+// SNAP
+// ═══════════════════════════════════════════════════════════
+const SNAP_DIST = 10;
+
+function toggleSnap() {
+  snapEnabled = !snapEnabled;
+  ['snap-btn','fab-snap'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.classList.toggle('snap-on', snapEnabled); el.classList.toggle('active', snapEnabled); }
+  });
+  document.getElementById('snap-btn').textContent = snapEnabled ? '⊹ ON' : '⊹ Snap';
+  if (!snapEnabled) hideSnapLines();
+  toast(snapEnabled ? 'Snap ON' : 'Snap OFF');
+}
+
+function ensureSnapLines() {
+  if (!snapLineH) { snapLineH = document.createElement('div'); snapLineH.className='snap-line h'; snapLineH.style.display='none'; interactLayer.appendChild(snapLineH); }
+  if (!snapLineV) { snapLineV = document.createElement('div'); snapLineV.className='snap-line v'; snapLineV.style.display='none'; interactLayer.appendChild(snapLineV); }
+}
+
+function hideSnapLines() {
+  if (snapLineH) snapLineH.style.display='none';
+  if (snapLineV) snapLineV.style.display='none';
+}
+
+function getSnapped(sp, nx, ny) {
+  if (!snapEnabled) return { x: nx, y: ny };
+  ensureSnapLines();
+  let bestDX = SNAP_DIST+1, bestDY = SNAP_DIST+1, snapX = null, snapY = null;
+  const targets = [
+    {x:0},{x:sheetW},{x:Math.round(sheetW/2)},
+    {y:0},{y:sheetH},{y:Math.round(sheetH/2)}
+  ];
+  sprites.forEach(s => {
+    if (s.id === sp.id) return;
+    targets.push({x:s.x},{x:s.x+s.w},{x:Math.round(s.x+s.w/2)});
+    targets.push({y:s.y},{y:s.y+s.h},{y:Math.round(s.y+s.h/2)});
+  });
+  const edgesX = [nx, nx+sp.w, Math.round(nx+sp.w/2)];
+  const edgesY = [ny, ny+sp.h, Math.round(ny+sp.h/2)];
+  targets.forEach(t => {
+    if (t.x!==undefined) edgesX.forEach(ex => { const d=Math.abs(ex-t.x); if(d<bestDX){bestDX=d;snapX=t.x-(ex-nx);} });
+    if (t.y!==undefined) edgesY.forEach(ey => { const d=Math.abs(ey-t.y); if(d<bestDY){bestDY=d;snapY=t.y-(ey-ny);} });
+  });
+  const fx = bestDX<=SNAP_DIST ? snapX : nx;
+  const fy = bestDY<=SNAP_DIST ? snapY : ny;
+  if (bestDX<=SNAP_DIST&&snapX!==null) { snapLineV.style.display='block'; snapLineV.style.left=snapX+'px'; } else snapLineV.style.display='none';
+  if (bestDY<=SNAP_DIST&&snapY!==null) { snapLineH.style.display='block'; snapLineH.style.top=snapY+'px'; } else snapLineH.style.display='none';
+  return { x: fx, y: fy };
+}
+
+// ═══════════════════════════════════════════════════════════
+// CROP TOOL (mouse + touch)
+// ═══════════════════════════════════════════════════════════
+function startCropMode() {
+  const sp = selectedId ? sprites.find(s => s.id === selectedId) : null;
+  if (!sp) { toast('Select a slice first'); return; }
+  cropSprite = sp; cropActive = true;
+  cropRegion = { x: sp.x, y: sp.y, w: sp.w, h: sp.h };
+  const overlay = document.getElementById('crop-overlay');
+  overlay.style.width  = sheetW + 'px';
+  overlay.style.height = sheetH + 'px';
+  overlay.classList.add('active');
+  updateCropBox();
+  interactLayer.style.pointerEvents = 'none';
+  document.getElementById('crop-btn').textContent = '✂…';
+  if (isMobile()) closeBottomSheet();
+}
+
+function updateCropBox() {
+  const box = document.getElementById('crop-box');
+  box.style.left = cropRegion.x+'px'; box.style.top  = cropRegion.y+'px';
+  box.style.width = cropRegion.w+'px'; box.style.height = cropRegion.h+'px';
+  document.getElementById('crop-dims').textContent = `${Math.round(cropRegion.w)} × ${Math.round(cropRegion.h)}`;
+}
+
+function applyCrop() {
+  if (!cropSprite) return;
+  const sp = cropSprite;
+  const scaleX = sp.img.width / sp.w, scaleY = sp.img.height / sp.h;
+  const rx = cropRegion.x - sp.x, ry = cropRegion.y - sp.y;
+  const cx = Math.max(0, Math.round(rx * scaleX)), cy = Math.max(0, Math.round(ry * scaleY));
+  const cw = Math.min(sp.img.width - cx, Math.round(cropRegion.w * scaleX));
+  const ch = Math.min(sp.img.height - cy, Math.round(cropRegion.h * scaleY));
+  if (cw < 2 || ch < 2) { toast('Crop region too small'); return; }
+  const tmpC = document.createElement('canvas');
+  tmpC.width = cw; tmpC.height = ch;
+  tmpC.getContext('2d').drawImage(sp.img, cx, cy, cw, ch, 0, 0, cw, ch);
+  const newImg = new Image();
+  newImg.onload = () => {
+    sp.img = newImg; sp.origW = cw; sp.origH = ch;
+    sp.x = Math.round(sp.x + rx); sp.y = Math.round(sp.y + ry);
+    sp.w = Math.round(cropRegion.w); sp.h = Math.round(cropRegion.h);
+    renderSpriteCanvas(sp.canvas, sp, getEffectiveFeather(sp));
+    updateSpriteEl(sp); updateLayerDims(sp); updateProps();
+    if (sp.thumbCanvas) { const tc = sp.thumbCanvas.getContext('2d'); tc.clearRect(0,0,64,48); tc.drawImage(newImg,0,0,64,48); }
+    cancelCrop(); toast('Crop applied ✓');
+  };
+  newImg.src = tmpC.toDataURL('image/png');
+}
+
+function cancelCrop() {
+  cropActive = false; cropSprite = null;
+  document.getElementById('crop-overlay').classList.remove('active');
+  interactLayer.style.pointerEvents = '';
+  document.getElementById('crop-btn').textContent = '✂';
+}
+
+// ── Crop interaction: mouse + touch ──
+(function setupCropInteraction() {
+  const box = document.getElementById('crop-box');
+  let mode = null, startPt, startRegion;
+
+  function startInteract(clientX, clientY, target) {
+    const handle = target.dataset && target.dataset.h;
+    mode = handle || (target === box || target.id === 'crop-dims' ? 'move' : null);
+    if (!mode) return;
+    startPt = clientToImage(clientX, clientY);
+    startRegion = { ...cropRegion };
+  }
+
+  function moveInteract(clientX, clientY) {
+    if (!mode || !cropSprite) return;
+    const cur = clientToImage(clientX, clientY);
+    const dx = cur.x - startPt.x, dy = cur.y - startPt.y;
+    const sp = cropSprite;
+    let { x, y, w, h } = startRegion;
+    const minW=10,minH=10,maxX=sp.x+sp.w,maxY=sp.y+sp.h;
+    if (mode==='move') {
+      x = Math.max(sp.x, Math.min(maxX-w, x+dx));
+      y = Math.max(sp.y, Math.min(maxY-h, y+dy));
+    } else {
+      if (mode.includes('e')) w=Math.max(minW,w+dx);
+      if (mode.includes('w')) { const nw=Math.max(minW,w-dx); x=x+w-nw; w=nw; }
+      if (mode.includes('s')) h=Math.max(minH,h+dy);
+      if (mode.includes('n')) { const nh=Math.max(minH,h-dy); y=y+h-nh; h=nh; }
+      if (x<sp.x){w-=sp.x-x;x=sp.x;} if(y<sp.y){h-=sp.y-y;y=sp.y;}
+      if(x+w>maxX)w=maxX-x; if(y+h>maxY)h=maxY-y;
+    }
+    cropRegion = { x, y, w, h };
+    updateCropBox();
+  }
+
+  // Mouse
+  box.addEventListener('mousedown', e => { if(!cropActive)return; e.preventDefault(); startInteract(e.clientX, e.clientY, e.target); document.addEventListener('mousemove',onMM); document.addEventListener('mouseup',onMU); });
+  box.querySelectorAll('.crop-handle').forEach(h => h.addEventListener('mousedown', e => { if(!cropActive)return; e.preventDefault(); e.stopPropagation(); startInteract(e.clientX,e.clientY,e.target); document.addEventListener('mousemove',onMM); document.addEventListener('mouseup',onMU); }));
+  function onMM(e) { moveInteract(e.clientX, e.clientY); }
+  function onMU() { mode=null; document.removeEventListener('mousemove',onMM); document.removeEventListener('mouseup',onMU); }
+
+  // Touch
+  box.addEventListener('touchstart', e => { if(!cropActive)return; e.preventDefault(); e.stopPropagation(); const t=e.touches[0]; startInteract(t.clientX,t.clientY,e.target); document.addEventListener('touchmove',onTM,{passive:false}); document.addEventListener('touchend',onTE,{passive:true}); }, {passive:false});
+  box.querySelectorAll('.crop-handle').forEach(h => h.addEventListener('touchstart', e => { if(!cropActive)return; e.preventDefault(); e.stopPropagation(); const t=e.touches[0]; startInteract(t.clientX,t.clientY,e.target); document.addEventListener('touchmove',onTM,{passive:false}); document.addEventListener('touchend',onTE,{passive:true}); }, {passive:false}));
+  function onTM(e) { if(e.touches.length===1){e.preventDefault();moveInteract(e.touches[0].clientX,e.touches[0].clientY);} }
+  function onTE() { mode=null; document.removeEventListener('touchmove',onTM); document.removeEventListener('touchend',onTE); }
+})();
+
+// ═══════════════════════════════════════════════════════════
+// LAYERS LIST (desktop)
+// ═══════════════════════════════════════════════════════════
+function addLayerItem(sp) {
+  document.getElementById('empty-layers')?.remove();
+  const li = makeLayerItem(sp, false);
+  document.getElementById('layers-list').insertBefore(li, document.getElementById('layers-list').firstChild);
+  document.getElementById('layer-count').textContent = sprites.length;
+}
+
+function addMobileLayerItem(sp) {
+  const li = makeLayerItem(sp, true);
+  document.getElementById('layers-list-m').insertBefore(li, document.getElementById('layers-list-m').firstChild);
+}
+
+function makeLayerItem(sp, mobile) {
+  const li = document.createElement('div');
+  li.className = 'layer-item'; li.dataset.id = sp.id;
+  const thumbWrap = document.createElement('div');
+  thumbWrap.className = 'layer-thumb checker';
+  const thumbC = document.createElement('canvas');
+  thumbC.width=64;thumbC.height=48;
+  thumbC.getContext('2d').drawImage(sp.img,0,0,64,48);
+  thumbWrap.appendChild(thumbC);
+  if (!mobile) sp.thumbCanvas = thumbC;
+  li.appendChild(thumbWrap);
+  const info = document.createElement('div');
+  info.className='layer-info';
+  const nm = document.createElement('div'); nm.className='layer-name'; nm.textContent=sp.name;
+  const dims = document.createElement('div'); dims.className='layer-dims'; dims.textContent=`${sp.w}×${sp.h}`;
+  if (!mobile) sp.dimEl=dims;
+  info.appendChild(nm); info.appendChild(dims); li.appendChild(info);
+  const ord = document.createElement('div'); ord.className='layer-order-btns';
+  const up=document.createElement('div');up.className='ord-btn';up.textContent='▲';up.addEventListener('click',e=>{e.stopPropagation();moveLayerUp(sp.id);});
+  const dn=document.createElement('div');dn.className='ord-btn';dn.textContent='▼';dn.addEventListener('click',e=>{e.stopPropagation();moveLayerDown(sp.id);});
+  ord.appendChild(up);ord.appendChild(dn);li.appendChild(ord);
+  const del=document.createElement('div');del.className='layer-del';del.textContent='✕';
+  del.addEventListener('click',e=>{e.stopPropagation();deleteSpriteById(sp.id);});
+  li.appendChild(del);
+  li.addEventListener('click',()=>selectSprite(sp.id));
+  li.addEventListener('touchend',e=>{e.preventDefault();selectSprite(sp.id);},{passive:false});
+  return li;
+}
+
+function updateLayerDims(sp) { if (sp.dimEl) sp.dimEl.textContent=`${sp.w}×${sp.h}`; }
+
+function rebuildLayersList() {
+  ['layers-list','layers-list-m'].forEach(listId => {
+    const list = document.getElementById(listId);
+    if (!list) return;
+    list.innerHTML='';
+    if (sprites.length===0 && listId==='layers-list') {
+      const e=document.createElement('div');e.id='empty-layers';
+      e.className='checker';e.style.cssText='padding:24px 14px;font-size:0.72rem;color:var(--muted2);text-align:center;line-height:1.7';
+      e.innerHTML='No slices yet.<br>Import images to begin.';list.appendChild(e);
+    } else {
+      [...sprites].reverse().forEach(sp => {
+        list.appendChild(makeLayerItem(sp, listId==='layers-list-m'));
+      });
+    }
+  });
+  document.getElementById('layer-count').textContent=sprites.length;
+}
+
+// ═══════════════════════════════════════════════════════════
+// LAYER ORDERING
+// ═══════════════════════════════════════════════════════════
+function moveLayerUp(id) {
+  const i=sprites.findIndex(s=>s.id===id);
+  if(i<sprites.length-1){[sprites[i],sprites[i+1]]=[sprites[i+1],sprites[i]];updateZOrders();rebuildLayersList();if(selectedId===id)selectSprite(id);}
+}
+function moveLayerDown(id) {
+  const i=sprites.findIndex(s=>s.id===id);
+  if(i>0){[sprites[i],sprites[i-1]]=[sprites[i-1],sprites[i]];updateZOrders();rebuildLayersList();if(selectedId===id)selectSprite(id);}
+}
+function updateZOrders() { sprites.forEach((sp,i)=>sp.el.style.zIndex=sp.id===selectedId?100:i); }
+function bringForward() { if(selectedId) moveLayerUp(selectedId); }
+function sendBackward() { if(selectedId) moveLayerDown(selectedId); }
+
+// ═══════════════════════════════════════════════════════════
+// PROPERTIES PANEL (synced desktop + mobile)
+// ═══════════════════════════════════════════════════════════
+function updateProps() {
+  const sp = selectedId ? sprites.find(s=>s.id===selectedId) : null;
+  // Desktop
+  document.getElementById('no-select-msg').style.display = sp?'none':'';
+  document.getElementById('props-body').style.display    = sp?'':'none';
+  // Mobile
+  document.getElementById('no-select-msg-m').style.display = sp?'none':'';
+  document.getElementById('props-body-m').style.display    = sp?'':'none';
+  if (!sp) return;
+  const ef = getEffectiveFeather(sp);
+  const sets = [
+    ['prop-x','prop-x-m',sp.x],['prop-y','prop-y-m',sp.y],
+    ['prop-w','prop-w-m',sp.w],['prop-h','prop-h-m',sp.h],
+  ];
+  sets.forEach(([d,m,v])=>{ setVal(d,v); setVal(m,v); });
+  setVal('prop-opacity',Math.round(sp.opacity*100));setVal('prop-opacity-m',Math.round(sp.opacity*100));
+  setText('prop-opacity-val',Math.round(sp.opacity*100)+'%');setText('prop-opacity-val-m',Math.round(sp.opacity*100)+'%');
+  setVal('prop-feather-slider',ef);setVal('prop-feather-slider-m',ef);
+  setText('prop-feather-val',ef+'px');setText('prop-feather-val-m',ef+'px');
+  const custom = sp.feather!==null;
+  ['prop-feather-badge','prop-feather-badge-m'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=custom?'inline':'none';});
+}
+
+function syncProps() { updateProps(); }
+
+function setVal(id,v){const el=document.getElementById(id);if(el)el.value=v;}
+function setText(id,v){const el=document.getElementById(id);if(el)el.textContent=v;}
+
+function applyPropChange() {
+  const sp=selectedId?sprites.find(s=>s.id===selectedId):null;if(!sp)return;
+  sp.x=parseInt(document.getElementById('prop-x').value)||0;
+  sp.y=parseInt(document.getElementById('prop-y').value)||0;
+  sp.w=Math.max(1,parseInt(document.getElementById('prop-w').value)||sp.origW);
+  sp.h=Math.max(1,parseInt(document.getElementById('prop-h').value)||sp.origH);
+  updateSpriteEl(sp);updateLayerDims(sp);
+}
+function applyPropChangeMobile() {
+  const sp=selectedId?sprites.find(s=>s.id===selectedId):null;if(!sp)return;
+  sp.x=parseInt(document.getElementById('prop-x-m').value)||0;
+  sp.y=parseInt(document.getElementById('prop-y-m').value)||0;
+  updateSpriteEl(sp);updateLayerDims(sp);
+}
+
+function isAspectLocked() { return document.getElementById('aspect-lock').checked || document.getElementById('aspect-lock-m').checked; }
+
+function applyPropW(val) {
+  const sp=selectedId?sprites.find(s=>s.id===selectedId):null;if(!sp)return;
+  const nw=Math.max(1,parseInt(val)||1);sp.w=nw;
+  if(isAspectLocked()){sp.h=Math.max(1,Math.round(nw/(sp.origW/sp.origH)));setVal('prop-h',sp.h);setVal('prop-h-m',sp.h);}
+  updateSpriteEl(sp);updateLayerDims(sp);
+}
+function applyPropH(val) {
+  const sp=selectedId?sprites.find(s=>s.id===selectedId):null;if(!sp)return;
+  const nh=Math.max(1,parseInt(val)||1);sp.h=nh;
+  if(isAspectLocked()){sp.w=Math.max(1,Math.round(nh*(sp.origW/sp.origH)));setVal('prop-w',sp.w);setVal('prop-w-m',sp.w);}
+  updateSpriteEl(sp);updateLayerDims(sp);
+}
+function applyPropWM(v){setVal('prop-w',v);applyPropW(v);}
+function applyPropHM(v){setVal('prop-h',v);applyPropH(v);}
+
+function applyOpacityChange(val) {
+  const sp=selectedId?sprites.find(s=>s.id===selectedId):null;if(!sp)return;
+  sp.opacity=parseInt(val)/100;sp.el.style.opacity=sp.opacity;
+  setText('prop-opacity-val',val+'%');setText('prop-opacity-val-m',val+'%');
+  setVal('prop-opacity-m',val);
+}
+function applyOpacityChangeMobile(val){setVal('prop-opacity',val);applyOpacityChange(val);}
+
+function resetSize() {
+  const sp=selectedId?sprites.find(s=>s.id===selectedId):null;if(!sp)return;
+  sp.w=sp.origW;sp.h=sp.origH;updateSpriteEl(sp);updateLayerDims(sp);updateProps();
+}
+function fitToSheet() {
+  const sp=selectedId?sprites.find(s=>s.id===selectedId):null;if(!sp)return;
+  const scale=Math.min(sheetW/sp.origW,sheetH/sp.origH);
+  sp.w=Math.round(sp.origW*scale);sp.h=Math.round(sp.origH*scale);sp.x=0;sp.y=0;
+  updateSpriteEl(sp);updateLayerDims(sp);updateProps();
+}
+function duplicateSelected() {
+  const sp=selectedId?sprites.find(s=>s.id===selectedId):null;if(!sp)return;
+  const id=++idCounter;const dup={...sp,id,x:sp.x+20,y:sp.y+20,el:null,canvas:null,thumbCanvas:null};
+  sprites.push(dup);createSpriteEl(dup);addLayerItem(dup);addMobileLayerItem(dup);selectSprite(id);updateControls();updateDropZone();
+}
+function deleteSelected(){if(selectedId)deleteSpriteById(selectedId);}
+function deleteSpriteById(id) {
+  const sp=sprites.find(s=>s.id===id);if(!sp)return;
+  sp.el.remove();sprites=sprites.filter(s=>s.id!==id);
+  document.querySelectorAll(`.layer-item[data-id="${id}"]`).forEach(e=>e.remove());
+  if(selectedId===id){selectedId=null;updateProps();}
+  if(sprites.length===0)rebuildLayersList();
+  document.getElementById('layer-count').textContent=sprites.length;
+  updateControls();updateDropZone();
+}
+function clearAll() {
+  sprites.forEach(sp=>sp.el.remove());sprites=[];selectedId=null;
+  rebuildLayersList();updateProps();updateControls();updateDropZone();
+}
+
+// ═══════════════════════════════════════════════════════════
+// FEATHER
+// ═══════════════════════════════════════════════════════════
+function getEffectiveFeather(sp){return sp.feather!==null?sp.feather:feather;}
+
+function onFeatherChange(val) {
+  feather=parseInt(val);
+  setText('feather-val',feather+'px');setText('feather-val-m',feather+'px');
+  sprites.forEach(sp=>renderSpriteCanvas(sp.canvas,sp,getEffectiveFeather(sp)));
+}
+function syncMobileFeather(val){setVal('feather-slider',val);}
+
+function onLayerFeatherChange(val) {
+  const sp=selectedId?sprites.find(s=>s.id===selectedId):null;if(!sp)return;
+  sp.feather=parseInt(val);setText('prop-feather-val',sp.feather+'px');setVal('prop-feather-slider-m',sp.feather);
+  setText('prop-feather-val-m',sp.feather+'px');renderSpriteCanvas(sp.canvas,sp,sp.feather);updateProps();
+}
+function onLayerFeatherChangeMobile(val){setVal('prop-feather-slider',val);onLayerFeatherChange(val);}
+
+function resetLayerFeather() {
+  const sp=selectedId?sprites.find(s=>s.id===selectedId):null;if(!sp)return;
+  sp.feather=null;updateProps();renderSpriteCanvas(sp.canvas,sp,feather);
+}
+
+// ═══════════════════════════════════════════════════════════
+// EXPORT
+// ═══════════════════════════════════════════════════════════
+function openExportModal(){document.getElementById('export-modal').classList.add('show');}
+function closeExportModal(){document.getElementById('export-modal').classList.remove('show');}
+
+function buildFlatCanvas() {
+  const off=document.createElement('canvas');off.width=sheetW;off.height=sheetH;
+  const oc=off.getContext('2d');
+  if(!transparent){oc.fillStyle=bgColor;oc.fillRect(0,0,sheetW,sheetH);}
+  sprites.forEach(sp=>{
+    oc.save();oc.globalAlpha=sp.opacity;
+    const ef=getEffectiveFeather(sp);
+    if(ef>0){const tmp=document.createElement('canvas');renderSpriteCanvas(tmp,sp,ef);oc.drawImage(tmp,sp.x,sp.y,sp.w,sp.h);}
+    else{oc.drawImage(sp.img,sp.x,sp.y,sp.w,sp.h);}
+    oc.restore();
+  });
+  return off;
+}
+
+async function doExport(format) {
+  closeExportModal();
+  if(!sprites.length){toast('Nothing to export');return;}
+  toast('Preparing…');
+  if(format==='png'){
+    const off=buildFlatCanvas();
+    off.toBlob(blob=>{triggerDownload(blob,`sheet_${sheetW}x${sheetH}.png`);toast('PNG exported ✓');},'image/png');
+  } else if(format==='jpg'){
+    const quality=parseInt(document.getElementById('jpg-quality').value)/100;
+    const off=document.createElement('canvas');off.width=sheetW;off.height=sheetH;
+    const oc=off.getContext('2d');oc.fillStyle=transparent?'#ffffff':bgColor;oc.fillRect(0,0,sheetW,sheetH);
+    oc.drawImage(buildFlatCanvas(),0,0);
+    off.toBlob(blob=>{triggerDownload(blob,`sheet_${sheetW}x${sheetH}.jpg`);toast('JPEG exported ✓');},'image/jpeg',quality);
+  } else if(format==='pdf'){
+    await exportPDF();
+  }
+}
+
+function triggerDownload(blob,filename){
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),300);
+}
+
+async function exportPDF() {
+  const PX_TO_PT=72/96,pw=sheetW*PX_TO_PT,ph=sheetH*PX_TO_PT;
+  const layers=[];
+  const bgC=document.createElement('canvas');bgC.width=sheetW;bgC.height=sheetH;
+  const bgCtx=bgC.getContext('2d');
+  if(!transparent){bgCtx.fillStyle=bgColor;bgCtx.fillRect(0,0,sheetW,sheetH);}
+  layers.push({canvas:bgC,x:0,y:0,w:sheetW,h:sheetH});
+  sprites.forEach(sp=>{
+    const c=document.createElement('canvas');c.width=sp.w;c.height=sp.h;
+    renderSpriteCanvas(c,sp,getEffectiveFeather(sp));
+    if(sp.opacity<1){const tmp=document.createElement('canvas');tmp.width=sp.w;tmp.height=sp.h;const tc=tmp.getContext('2d');tc.globalAlpha=sp.opacity;tc.drawImage(c,0,0);layers.push({canvas:tmp,x:sp.x,y:sp.y,w:sp.w,h:sp.h});}
+    else layers.push({canvas:c,x:sp.x,y:sp.y,w:sp.w,h:sp.h});
+  });
+  let objIndex=3;
+  const imgObjects=layers.map(layer=>{const b64=layer.canvas.toDataURL('image/png').split(',')[1];return{...layer,b64,objId:++objIndex};});
+  let contentStream='';
+  imgObjects.forEach(img=>{
+    const x=img.x*PX_TO_PT,y=ph-(img.y+img.h)*PX_TO_PT,iw=img.w*PX_TO_PT,ih=img.h*PX_TO_PT;
+    contentStream+=`q ${iw} 0 0 ${ih} ${x.toFixed(2)} ${y.toFixed(2)} cm /Im${img.objId} Do Q\n`;
+  });
+  const contentObjId=++objIndex;
+  let pdf='%PDF-1.4\n';const offsets={};
+  function writeObj(id,body){offsets[id]=pdf.length;pdf+=`${id} 0 obj\n${body}\nendobj\n`;}
+  writeObj(1,'<< /Type /Catalog /Pages 2 0 R >>');
+  writeObj(2,`<< /Type /Pages /Kids [3 0 R] /Count 1 >>`);
+  const xobjs=imgObjects.map(i=>`/Im${i.objId} ${i.objId} 0 R`).join(' ');
+  const resources=`<< /ProcSet [/PDF /ImageB /ImageC /ImageI] /XObject << ${xobjs} >> >>`;
+  writeObj(3,`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pw.toFixed(2)} ${ph.toFixed(2)}] /Contents ${contentObjId} 0 R /Resources ${resources} >>`);
+  writeObj(contentObjId,`<< /Length ${contentStream.length} >>\nstream\n${contentStream}endstream`);
+  imgObjects.forEach(img=>{const bl=Math.round(img.b64.length*0.75);writeObj(img.objId,`<< /Type /XObject /Subtype /Image /Width ${img.w} /Height ${img.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${bl} >>\nstream\n[IMG:${img.b64}]\nendstream`);});
+  const xrefOffset=pdf.length,totalObjs=objIndex;
+  pdf+=`xref\n0 ${totalObjs+1}\n0000000000 65535 f \n`;
+  for(let i=1;i<=totalObjs;i++)pdf+=(offsets[i]||0).toString().padStart(10,'0')+' 00000 n \n';
+  pdf+=`trailer\n<< /Size ${totalObjs+1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  const blob=await buildPDFBlob(imgObjects,pdf);
+  triggerDownload(blob,`sheet_${sheetW}x${sheetH}.pdf`);toast('PDF exported ✓');
+}
+
+async function buildPDFBlob(imgObjects,pdfText) {
+  const parts=[];let remaining=pdfText;
+  for(const img of imgObjects){
+    const jpegB64=await new Promise(res=>{img.canvas.toBlob(blob=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.readAsDataURL(blob);},'image/jpeg',0.92);});
+    const idx=remaining.indexOf('[IMG:');if(idx===-1)break;
+    parts.push(new TextEncoder().encode(remaining.slice(0,idx)));
+    const binStr=atob(jpegB64),bytes=new Uint8Array(binStr.length);
+    for(let i=0;i<binStr.length;i++)bytes[i]=binStr.charCodeAt(i);
+    parts.push(bytes);remaining=remaining.slice(idx+`[IMG:${img.b64}]`.length);
+  }
+  parts.push(new TextEncoder().encode(remaining));
+  const totalLen=parts.reduce((a,p)=>a+p.byteLength,0);
+  const out=new Uint8Array(totalLen);let offset=0;
+  for(const p of parts){out.set(p,offset);offset+=p.byteLength;}
+  return new Blob([out],{type:'application/pdf'});
+}
+
+// ═══════════════════════════════════════════════════════════
+// MOBILE BOTTOM SHEET
+// ═══════════════════════════════════════════════════════════
+let sheetOpen = false;
+function openBottomSheet(){sheetOpen=true;document.getElementById('bottom-sheet').classList.add('open');}
+function closeBottomSheet(){sheetOpen=false;document.getElementById('bottom-sheet').classList.remove('open');}
+function toggleBottomSheet(){sheetOpen?closeBottomSheet():openBottomSheet();}
+
+// Swipe down to close
+(function setupSheetSwipe(){
+  const sheet=document.getElementById('bottom-sheet');
+  const handle=document.getElementById('bottom-sheet-handle');
+  let startY,startT;
+  function start(y){startY=y;startT=sheet.style.transform;}
+  function move(y){const dy=Math.max(0,y-startY);sheet.style.transition='none';sheet.style.transform=`translateY(${dy}px)`;}
+  function end(y){
+    sheet.style.transition='';
+    if(y-startY>80)closeBottomSheet();
+    else sheet.style.transform=sheetOpen?'translateY(0)':'translateY(100%)';
+  }
+  handle.addEventListener('touchstart',e=>{start(e.touches[0].clientY);},{passive:true});
+  handle.addEventListener('touchmove',e=>{move(e.touches[0].clientY);},{passive:true});
+  handle.addEventListener('touchend',e=>{end(e.changedTouches[0].clientY);},{passive:true});
+})();
+
+function switchTab(tab) {
+  document.querySelectorAll('.sheet-tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
+  ['setup','layers','props'].forEach(t=>{const el=document.getElementById('tab-'+t);if(el)el.style.display=t===tab?'':'none';});
+}
+
+// ═══════════════════════════════════════════════════════════
+// CONTROLS STATE
+// ═══════════════════════════════════════════════════════════
+function updateControls() {
+  const has=sprites.length>0;
+  ['fit-btn','zoom100-btn','snap-btn'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});
+  ['export-btn','clear-all-btn','crop-btn'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=!has;});
+}
+
+// ═══════════════════════════════════════════════════════════
+// TOAST + KEYBOARD
+// ═══════════════════════════════════════════════════════════
+function toast(msg){
+  const el=document.getElementById('toast');el.textContent=msg;
+  el.classList.add('show');clearTimeout(el._t);
+  el._t=setTimeout(()=>el.classList.remove('show'),3000);
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT')return;
+  if(e.key==='Escape'){if(cropActive)cancelCrop();else deselectAll();}
+  if(e.key==='c'&&!e.ctrlKey&&!e.metaKey&&selectedId)startCropMode();
+  if(e.key==='s'&&!e.ctrlKey&&!e.metaKey)toggleSnap();
+  if((e.key==='Delete'||e.key==='Backspace')&&selectedId)deleteSelected();
+  if(e.key==='d'&&(e.ctrlKey||e.metaKey)){e.preventDefault();duplicateSelected();}
+  const sp=selectedId?sprites.find(s=>s.id===selectedId):null;
+  if(sp){
+    const step=e.shiftKey?10:1;
+    if(e.key==='ArrowLeft'){sp.x-=step;sp.el.style.left=sp.x+'px';syncProps();}
+    if(e.key==='ArrowRight'){sp.x+=step;sp.el.style.left=sp.x+'px';syncProps();}
+    if(e.key==='ArrowUp'){sp.y-=step;sp.el.style.top=sp.y+'px';syncProps();}
+    if(e.key==='ArrowDown'){sp.y+=step;sp.el.style.top=sp.y+'px';syncProps();}
+  }
+});
+
+// Prevent iOS bounce scroll only on the canvas area (not globally — that breaks file picker)
+canvasArea.addEventListener('touchmove', e => {
+  // Allow scrolling in panels; block only on canvas
+  e.preventDefault();
+}, { passive: false });
+
+// ═══════════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════════
+initSheet();
+fitView();
+updateControls();
+updateProps();
+
+// ═══════════════════════════════════════════════════════════
+// PWA — Manifest + Service Worker (self-contained, no server needed)
+// ═══════════════════════════════════════════════════════════
+(function initPWA() {
+  // ── Icon: yellow grid on dark background ──
+  const iconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+    <rect width="512" height="512" fill="#0a0a0c"/>
+    <rect x="40" y="40" width="190" height="190" rx="18" fill="#e8ff47" opacity="0.95"/>
+    <rect x="282" y="40" width="190" height="190" rx="18" fill="#e8ff47" opacity="0.6"/>
+    <rect x="40" y="282" width="190" height="190" rx="18" fill="#e8ff47" opacity="0.6"/>
+    <rect x="282" y="282" width="190" height="190" rx="18" fill="#e8ff47" opacity="0.35"/>
+    <text x="256" y="290" text-anchor="middle" font-family="monospace" font-size="80" font-weight="bold" fill="#0a0a0c" opacity="0.5">SC</text>
+  </svg>`;
+  const iconURL = 'data:image/svg+xml;base64,' + btoa(iconSVG);
+
+  // Set apple touch icon
+  document.getElementById('apple-icon').href = iconURL;
+
+  // ── Manifest ──
+  const manifest = {
+    name: 'Sheet Composer',
+    short_name: 'Composer',
+    description: 'Compose image sheets with layers, feathering and export',
+    start_url: '.',
+    display: 'standalone',
+    orientation: 'any',
+    background_color: '#0a0a0c',
+    theme_color: '#0a0a0c',
+    icons: [
+      { src: iconURL, sizes: '512x512', type: 'image/svg+xml', purpose: 'any maskable' },
+      { src: iconURL, sizes: '192x192', type: 'image/svg+xml' }
+    ]
+  };
+  const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+  const manifestURL  = URL.createObjectURL(manifestBlob);
+  document.getElementById('pwa-manifest').href = manifestURL;
+
+  // ── Service Worker (inline, registered via blob URL) ──
+  // Caches the entire page HTML for offline use
+  const swCode = `
+const CACHE = 'sheet-composer-v1';
+const URLS  = [self.location.href];
+
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(CACHE).then(cache => cache.addAll(URLS)));
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', e => {
+  e.waitUntil(clients.claim());
+});
+
+self.addEventListener('fetch', e => {
+  e.respondWith(
+    caches.match(e.request).then(cached => cached || fetch(e.request).catch(() => caches.match(self.location.href)))
+  );
+});
+`;
+  if ('serviceWorker' in navigator) {
+    const swBlob = new Blob([swCode], { type: 'application/javascript' });
+    const swURL  = URL.createObjectURL(swBlob);
+    navigator.serviceWorker.register(swURL, { scope: './' })
+      .then(() => console.log('[SW] Registered'))
+      .catch(e => console.warn('[SW] Failed:', e));
+  }
+
+  // ── "Add to Home Screen" prompt hint (shown once) ──
+  const shown = sessionStorage.getItem('pwa-hint-shown');
+  if (!shown && window.matchMedia('(display-mode: browser)').matches) {
+    sessionStorage.setItem('pwa-hint-shown', '1');
+    setTimeout(() => {
+      const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      if (isIOS) {
+        showInstallBanner('Tap  ⎋ Share  then  "Add to Home Screen"  to install');
+      }
+    }, 2000);
+  }
+})();
+
+function showInstallBanner(msg) {
+  const banner = document.createElement('div');
+  banner.style.cssText = `
+    position:fixed;bottom:calc(80px + env(safe-area-inset-bottom,0px));left:50%;
+    transform:translateX(-50%);
+    background:#1a1a20;border:1px solid #e8ff4744;
+    font-family:'JetBrains Mono',monospace;font-size:0.68rem;color:#e8e8ec;
+    padding:12px 18px;text-align:center;line-height:1.6;
+    max-width:calc(100vw - 40px);z-index:8888;
+    box-shadow:0 4px 24px rgba(0,0,0,0.7);
+  `;
+  banner.innerHTML = msg + '<br><span style="color:#5a5a6e;font-size:0.6rem;margin-top:4px;display:block">tap anywhere to dismiss</span>';
+  banner.onclick = () => banner.remove();
+  document.body.appendChild(banner);
+  setTimeout(() => banner.remove && banner.remove(), 9000);
+}
+</script>
+</body>
+</html>
