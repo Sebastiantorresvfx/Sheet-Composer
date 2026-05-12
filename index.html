@@ -671,6 +671,187 @@ input[type=range]::-moz-range-thumb{
 }
 #add-to-lib-name:focus{border-color:var(--accent)}
 
+/* ═══════════════════════════════════════════════════════════ */
+/* TIER 2 ADDITIONS: EDGE REFINE, MULTIPAGE, FLIP/ROTATE        */
+/* ═══════════════════════════════════════════════════════════ */
+
+/* Edge Refinement — full-screen modal overlay */
+#refine-overlay{
+  display:none;position:fixed;inset:0;z-index:1500;
+  background:#0a0a0c;
+  flex-direction:column;
+  padding-top:var(--safe-top);padding-bottom:var(--safe-bottom);
+}
+#refine-overlay.show{display:flex}
+#refine-topbar{
+  height:48px;background:var(--panel);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 12px;gap:8px;flex-shrink:0;
+  overflow-x:auto;overflow-y:hidden;scrollbar-width:none;
+}
+#refine-topbar::-webkit-scrollbar{display:none}
+#refine-topbar h2{
+  font-family:'JetBrains Mono',monospace;font-size:0.75rem;
+  color:var(--accent);letter-spacing:0.08em;
+  white-space:nowrap;flex-shrink:0;text-transform:uppercase;
+}
+#refine-stage{
+  flex:1;position:relative;overflow:hidden;
+  background:
+    linear-gradient(45deg,#141418 25%,transparent 25%),
+    linear-gradient(-45deg,#141418 25%,transparent 25%),
+    linear-gradient(45deg,transparent 75%,#141418 75%),
+    linear-gradient(-45deg,transparent 75%,#141418 75%);
+  background-size:18px 18px;
+  background-position:0 0,0 9px,9px -9px,-9px 0;
+  background-color:#0d0d10;
+  display:flex;align-items:center;justify-content:center;
+  touch-action:none;
+}
+#refine-canvas-wrap{
+  position:relative;display:block;
+  border:1px solid var(--border2);
+  box-shadow:0 4px 32px rgba(0,0,0,0.6);
+}
+#refine-canvas{display:block;cursor:crosshair;touch-action:none}
+#refine-brush-preview{
+  position:absolute;pointer-events:none;
+  border:2px solid var(--accent);border-radius:50%;
+  display:none;
+  box-shadow:0 0 0 1px rgba(0,0,0,0.6);
+}
+#refine-overlay.tool-erase #refine-brush-preview{border-color:var(--accent2)}
+#refine-toolbar{
+  height:auto;min-height:64px;background:var(--panel);
+  border-top:1px solid var(--border);
+  display:flex;align-items:center;padding:10px 12px;gap:10px;
+  flex-shrink:0;flex-wrap:wrap;
+}
+.refine-tool-btn{
+  font-family:'JetBrains Mono',monospace;font-size:0.65rem;
+  letter-spacing:0.05em;text-transform:uppercase;font-weight:600;
+  padding:10px 14px;border:1px solid var(--border2);
+  background:transparent;color:var(--text);cursor:pointer;
+  min-height:44px;min-width:80px;
+  -webkit-tap-highlight-color:transparent;
+  display:flex;align-items:center;gap:8px;justify-content:center;
+}
+.refine-tool-btn:hover,.refine-tool-btn:active{border-color:var(--accent);color:var(--accent)}
+.refine-tool-btn.active{background:var(--accent);color:#000;border-color:var(--accent);font-weight:700}
+.refine-tool-btn.erase.active{background:var(--accent2);color:#fff;border-color:var(--accent2)}
+.refine-tool-btn.smooth.active{background:var(--accent3);color:#000;border-color:var(--accent3)}
+.refine-slider-group{
+  display:flex;align-items:center;gap:8px;
+  padding:0 8px;border-left:1px solid var(--border);height:36px;
+}
+.refine-slider-group label{
+  font-family:'JetBrains Mono',monospace;font-size:0.6rem;
+  color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;
+  white-space:nowrap;
+}
+.refine-slider-group input[type=range]{width:100px}
+.refine-slider-group .val{
+  font-family:'JetBrains Mono',monospace;font-size:0.7rem;
+  color:var(--accent);min-width:28px;text-align:right;
+}
+#refine-actions{margin-left:auto;display:flex;gap:10px}
+.refine-action-btn{
+  font-family:'JetBrains Mono',monospace;font-size:0.85rem;font-weight:700;
+  letter-spacing:0.05em;text-transform:uppercase;
+  padding:14px 24px;border:none;cursor:pointer;min-height:52px;min-width:130px;
+  -webkit-tap-highlight-color:transparent;
+  transition:transform 0.1s;
+}
+.refine-action-btn:active{transform:translateY(1px)}
+.refine-action-btn.apply{background:var(--accent);color:#000}
+.refine-action-btn.cancel{background:var(--panel2);color:var(--text);border:2px solid var(--border2)}
+.refine-action-btn.cancel:hover{border-color:var(--accent2);color:var(--accent2)}
+@media(max-width:700px){
+  #refine-toolbar{padding:8px}
+  .refine-tool-btn{min-width:64px;padding:9px 8px;font-size:0.6rem}
+  .refine-slider-group input[type=range]{width:80px}
+  .refine-action-btn{min-width:90px;padding:12px 14px;font-size:0.75rem}
+}
+
+/* Multi-page tab strip */
+#page-tabs{
+  height:42px;background:var(--panel2);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;flex-shrink:0;
+  overflow-x:auto;overflow-y:hidden;scrollbar-width:none;
+  -webkit-overflow-scrolling:touch;
+  padding-left:8px;
+}
+#page-tabs::-webkit-scrollbar{display:none}
+.page-tab{
+  display:flex;align-items:center;gap:6px;
+  padding:0 14px;height:32px;margin-right:4px;
+  font-family:'JetBrains Mono',monospace;font-size:0.66rem;
+  letter-spacing:0.04em;text-transform:uppercase;
+  color:var(--muted);
+  background:transparent;border:1px solid transparent;
+  border-bottom:none;cursor:pointer;flex-shrink:0;
+  -webkit-tap-highlight-color:transparent;
+  user-select:none;-webkit-user-select:none;
+  position:relative;
+}
+.page-tab:hover{color:var(--text)}
+.page-tab.active{
+  background:var(--bg);color:var(--accent);
+  border-color:var(--border2);
+  border-bottom-color:var(--bg);
+  margin-bottom:-1px;
+}
+.page-tab-name{white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis}
+.page-tab-close{
+  opacity:0.4;color:var(--muted);font-size:0.8rem;
+  cursor:pointer;padding:0 2px;line-height:1;
+  -webkit-tap-highlight-color:transparent;
+}
+.page-tab:hover .page-tab-close,.page-tab.active .page-tab-close{opacity:0.7}
+.page-tab-close:hover{opacity:1;color:var(--accent2)}
+#page-add-btn{
+  background:transparent;border:none;color:var(--muted);
+  font-family:'JetBrains Mono',monospace;font-size:0.85rem;
+  width:36px;height:32px;cursor:pointer;flex-shrink:0;
+  -webkit-tap-highlight-color:transparent;
+  display:flex;align-items:center;justify-content:center;
+}
+#page-add-btn:hover{color:var(--accent)}
+#page-info{
+  margin-left:auto;padding-right:12px;
+  font-family:'JetBrains Mono',monospace;font-size:0.6rem;
+  color:var(--muted2);letter-spacing:0.05em;
+  flex-shrink:0;
+}
+@media(max-width:700px){
+  #page-tabs{height:38px}
+  .page-tab{padding:0 10px;height:28px;font-size:0.6rem}
+  .page-tab-name{max-width:90px}
+}
+
+/* Inline editable page name */
+.page-tab-name.editing{
+  background:var(--bg);color:var(--text);
+  outline:1px solid var(--accent);
+  padding:2px 4px;cursor:text;
+}
+
+/* Flip / Rotate / Mirror buttons in props panel */
+.transform-row{
+  display:flex;gap:6px;margin-top:8px;
+}
+.transform-btn{
+  flex:1;padding:9px 4px;
+  font-family:'JetBrains Mono',monospace;font-size:0.7rem;
+  background:transparent;border:1px solid var(--border2);
+  color:var(--text);cursor:pointer;min-height:38px;
+  -webkit-tap-highlight-color:transparent;
+  display:flex;align-items:center;justify-content:center;
+}
+.transform-btn:hover,.transform-btn:active{border-color:var(--accent);color:var(--accent)}
+.transform-btn svg{width:18px;height:18px}
+
 
 
 /* Wand mode cursor + tolerance bubble */
@@ -858,6 +1039,12 @@ input[type=range]::-moz-range-thumb{
   </div>
 </div>
 
+<!-- PAGE TABS -->
+<div id="page-tabs">
+  <button id="page-add-btn" onclick="addPage()" title="Add page">＋</button>
+  <span id="page-info"></span>
+</div>
+
 <!-- MAIN -->
 <div id="app">
 
@@ -1013,8 +1200,23 @@ input[type=range]::-moz-range-thumb{
           <button class="prop-btn" onclick="resetLayerFeather()">Use Global Value</button>
         </div>
         <div class="prop-section">
+          <div class="prop-section-title">Transform</div>
+          <div class="transform-row">
+            <button class="transform-btn" onclick="flipSelectedH()" title="Flip horizontal">
+              <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M2,4 L9,4 L9,16 L2,16 Z" fill="currentColor" opacity="0.7"/><path d="M11,4 L18,4 L18,16 L11,16 Z" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="10" y1="2" x2="10" y2="18" stroke="currentColor" stroke-width="1" stroke-dasharray="2 2"/></svg>
+            </button>
+            <button class="transform-btn" onclick="flipSelectedV()" title="Flip vertical">
+              <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M4,2 L16,2 L16,9 L4,9 Z" fill="currentColor" opacity="0.7"/><path d="M4,11 L16,11 L16,18 L4,18 Z" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="2" y1="10" x2="18" y2="10" stroke="currentColor" stroke-width="1" stroke-dasharray="2 2"/></svg>
+            </button>
+            <button class="transform-btn" onclick="rotateSelected90()" title="Rotate 90°">
+              <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M4,10 A6,6 0 1 1 14,14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><polygon points="13,10 17,14 13,16" fill="currentColor"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="prop-section">
           <div class="prop-section-title">Actions</div>
           <button class="prop-btn" onclick="startCropMode()">✂ Crop Slice</button>
+          <button class="prop-btn" id="prop-refine-btn" onclick="startRefineSelected()" style="display:none">✎ Refine Edge</button>
           <button class="prop-btn" onclick="duplicateSelected()">Duplicate</button>
           <button class="prop-btn" onclick="bringForward()">Bring Forward</button>
           <button class="prop-btn" onclick="sendBackward()">Send Backward</button>
@@ -1152,8 +1354,23 @@ input[type=range]::-moz-range-thumb{
           <button class="prop-btn" onclick="resetLayerFeather()">Use Global</button>
         </div>
         <div class="prop-section">
+          <div class="prop-section-title">Transform</div>
+          <div class="transform-row">
+            <button class="transform-btn" onclick="flipSelectedH()" title="Flip horizontal">
+              <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M2,4 L9,4 L9,16 L2,16 Z" fill="currentColor" opacity="0.7"/><path d="M11,4 L18,4 L18,16 L11,16 Z" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="10" y1="2" x2="10" y2="18" stroke="currentColor" stroke-width="1" stroke-dasharray="2 2"/></svg>
+            </button>
+            <button class="transform-btn" onclick="flipSelectedV()" title="Flip vertical">
+              <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M4,2 L16,2 L16,9 L4,9 Z" fill="currentColor" opacity="0.7"/><path d="M4,11 L16,11 L16,18 L4,18 Z" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="2" y1="10" x2="18" y2="10" stroke="currentColor" stroke-width="1" stroke-dasharray="2 2"/></svg>
+            </button>
+            <button class="transform-btn" onclick="rotateSelected90()" title="Rotate 90°">
+              <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M4,10 A6,6 0 1 1 14,14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><polygon points="13,10 17,14 13,16" fill="currentColor"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="prop-section">
           <div class="prop-section-title">Actions</div>
           <button class="prop-btn" onclick="startCropMode()">✂ Crop</button>
+          <button class="prop-btn" id="prop-refine-btn-m" onclick="startRefineSelected()" style="display:none">✎ Refine Edge</button>
           <button class="prop-btn" onclick="duplicateSelected()">Duplicate</button>
           <button class="prop-btn" onclick="bringForward()">Bring Forward</button>
           <button class="prop-btn" onclick="sendBackward()">Send Backward</button>
@@ -1302,9 +1519,23 @@ input[type=range]::-moz-range-thumb{
 
 <!-- RIGHT-CLICK CONTEXT MENU -->
 <div id="sprite-context-menu">
+  <div class="ctx-item" id="ctx-refine-edge" onclick="contextRefineEdge()">
+    <span class="ctx-icon">✎</span>Refine Edge
+  </div>
   <div class="ctx-item" id="ctx-add-to-lib" onclick="contextAddToLibrary()">
     <span class="ctx-icon">＋</span>Add to Library
   </div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" onclick="contextFlipH()">
+    <span class="ctx-icon">⇄</span>Flip Horizontal
+  </div>
+  <div class="ctx-item" onclick="contextFlipV()">
+    <span class="ctx-icon">⇅</span>Flip Vertical
+  </div>
+  <div class="ctx-item" onclick="contextRotate90()">
+    <span class="ctx-icon">↻</span>Rotate 90°
+  </div>
+  <div class="ctx-sep"></div>
   <div class="ctx-item" onclick="contextDuplicate()">
     <span class="ctx-icon">⎘</span>Duplicate
   </div>
@@ -1329,6 +1560,44 @@ input[type=range]::-moz-range-thumb{
     <div class="text-modal-actions">
       <button class="cancel" onclick="closeAddToLibModal()">Cancel</button>
       <button class="apply" onclick="confirmAddToLibrary()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDGE REFINE OVERLAY -->
+<div id="refine-overlay">
+  <div id="refine-topbar">
+    <h2>✏ Refine Edge</h2>
+    <span style="font-family:'JetBrains Mono',monospace;font-size:0.6rem;color:var(--muted);margin-left:12px" id="refine-info"></span>
+  </div>
+  <div id="refine-stage">
+    <div id="refine-canvas-wrap">
+      <canvas id="refine-canvas"></canvas>
+    </div>
+    <div id="refine-brush-preview"></div>
+  </div>
+  <div id="refine-toolbar">
+    <button class="refine-tool-btn active" id="refine-tool-restore" onclick="setRefineTool('restore')" title="Restore pixels from source">＋ Restore</button>
+    <button class="refine-tool-btn erase" id="refine-tool-erase" onclick="setRefineTool('erase')" title="Erase pixels">✕ Erase</button>
+    <button class="refine-tool-btn smooth" id="refine-tool-smooth" onclick="setRefineTool('smooth')" title="Smooth edge">∿ Smooth</button>
+    <div class="refine-slider-group">
+      <label>Size</label>
+      <input type="range" id="refine-brush-size" min="4" max="120" value="24">
+      <span class="val" id="refine-brush-size-val">24</span>
+    </div>
+    <div class="refine-slider-group">
+      <label>Hardness</label>
+      <input type="range" id="refine-brush-hardness" min="0" max="100" value="70">
+      <span class="val" id="refine-brush-hardness-val">70</span>
+    </div>
+    <div class="refine-slider-group">
+      <label>Zoom</label>
+      <input type="range" id="refine-zoom" min="25" max="800" value="100">
+      <span class="val" id="refine-zoom-val">100%</span>
+    </div>
+    <div id="refine-actions">
+      <button class="refine-action-btn cancel" onclick="cancelRefine()">✕ Cancel</button>
+      <button class="refine-action-btn apply" onclick="applyRefine()">✓ Apply</button>
     </div>
   </div>
 </div>
@@ -3569,6 +3838,9 @@ function snapshotSprite(sp) {
       sp._dataURL = tmp.toDataURL('image/png');
     }
     base._dataURL = sp._dataURL;
+    // Preserve the wand-cut source reference so edge refinement works after
+    // reload/undo. Only present on wand-cut sprites.
+    if (sp._wandSource) base._wandSource = sp._wandSource;
   }
   return base;
 }
@@ -3659,6 +3931,7 @@ function restoreSpriteFromSnapshot(s) {
           opacity: s.opacity, feather: s.feather,
           _dataURL: s._dataURL
         };
+        if (s._wandSource) sp._wandSource = s._wandSource;
         sprites.push(sp);
         createSpriteEl(sp);
         addLayerItem(sp);
@@ -3981,6 +4254,15 @@ function performWandCut(sheetX, sheetY) {
   // Spawn this as a new sprite in the same world-space location as where it was on the sheet
   pushHistory();
   const dataURL = outC.toDataURL('image/png');
+  // Cache the source's dataURL so undo/redo and edge refinement can sample it
+  let sourceDataURL = target._dataURL;
+  if (!sourceDataURL) {
+    const tmp = document.createElement('canvas');
+    tmp.width = imgW; tmp.height = imgH;
+    tmp.getContext('2d').drawImage(target.img, 0, 0);
+    sourceDataURL = tmp.toDataURL('image/png');
+    target._dataURL = sourceDataURL;
+  }
   const newImg = new Image();
   newImg.onload = () => {
     const id = ++idCounter;
@@ -3995,7 +4277,15 @@ function performWandCut(sheetX, sheetY) {
       w: Math.round(newW), h: Math.round(newH),
       origW: outW, origH: outH,
       opacity: 1, feather: null,
-      _dataURL: dataURL
+      _dataURL: dataURL,
+      // Source-tracking for edge refinement: keeps a copy of the source so we
+      // can paint masked-out pixels back from the original.
+      _wandSource: {
+        dataURL: sourceDataURL,
+        // Where this cutout came from on the source, in source-pixel coords:
+        srcX: minX, srcY: minY, srcW: outW, srcH: outH,
+        srcImgW: imgW, srcImgH: imgH
+      }
     };
     sprites.push(sp);
     createSpriteEl(sp);
@@ -4527,40 +4817,7 @@ function saveProject() {
   toast('Project saved');
 }
 
-document.getElementById('project-input').addEventListener('change', e => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    try {
-      const project = JSON.parse(ev.target.result);
-      if (project.format !== 'storyboard-composer') {
-        toast('Not a storyboard file');
-        return;
-      }
-      if (sprites.length > 0) {
-        if (!confirm('Loading will replace your current sheet. Continue?')) return;
-      }
-      pushHistory();
-      restoreState({
-        sprites: project.sprites,
-        selectedId: null,
-        sheetW: project.sheetW,
-        sheetH: project.sheetH,
-        bgColor: project.bgColor,
-        transparent: project.transparent,
-        panelGrid: project.panelGrid,
-        idCounter: project.idCounter || 0
-      });
-      toast('Project loaded');
-    } catch (err) {
-      console.error(err);
-      toast('Failed to load: ' + err.message);
-    }
-  };
-  reader.readAsText(file);
-  e.target.value = ''; // reset so same file can be re-loaded
-});
+// (Project file loading is handled in the Tier 2 multi-page section below.)
 
 // ═══════════════════════════════════════════════════════════
 // UPDATE CONTROLS — enable wand button when any image is present
@@ -4991,6 +5248,1067 @@ document.addEventListener('keydown', e => {
 })();
 
 // ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// TIER 2: FLIP/ROTATE, EDGE REFINE, MULTI-PAGE
+// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════
+// FLIP / ROTATE / MIRROR
+// ═══════════════════════════════════════════════════════════
+// We support flip-H, flip-V, and 90° increments (axis-aligned only,
+// so the existing drag/resize/snap math keeps working). Free rotation
+// would require a much bigger refactor and is deliberately deferred.
+
+function flipSelectedH() { flipSelected('h'); }
+function flipSelectedV() { flipSelected('v'); }
+
+function flipSelected(axis) {
+  if (!selectedId) return;
+  const sp = sprites.find(s => s.id === selectedId);
+  if (!sp) return;
+  pushHistory();
+  if (sp.img && !sp.type) {
+    // Raster image: flip the pixels in place
+    flipImageSprite(sp, axis);
+  } else if (sp.type === 'text') {
+    // Text sprites: flipping doesn't really make sense; do nothing
+    toast('Text cannot be flipped');
+    undoStack.pop(); // remove the spurious history push
+    return;
+  } else if (sp.type === 'character') {
+    flipCharacterSkeleton(sp, axis);
+    updateSpriteEl(sp);
+    refreshThumb(sp);
+  } else if (sp.type === 'arrow') {
+    flipArrow(sp, axis);
+    updateSpriteEl(sp);
+    refreshThumb(sp);
+  } else if (sp.type === 'clipart') {
+    // Clipart: flip via canvas re-render with transform applied to image
+    flipImageSprite(sp, axis);
+  }
+  toast(axis === 'h' ? 'Flipped horizontal' : 'Flipped vertical');
+}
+
+function flipImageSprite(sp, axis) {
+  // Render existing sp.img to a flipped canvas, replace sp.img with the result.
+  // Operate at the natural-pixel size so we don't lose resolution.
+  const W = sp.img.naturalWidth || sp.img.width;
+  const H = sp.img.naturalHeight || sp.img.height;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  ctx.save();
+  if (axis === 'h') {
+    ctx.translate(W, 0); ctx.scale(-1, 1);
+  } else {
+    ctx.translate(0, H); ctx.scale(1, -1);
+  }
+  ctx.drawImage(sp.img, 0, 0);
+  ctx.restore();
+  const dataURL = c.toDataURL('image/png');
+  const newImg = new Image();
+  newImg.onload = () => {
+    sp.img = newImg;
+    sp._dataURL = dataURL;
+    // Update the wand source bookkeeping too, so refine still works.
+    // We mark that source mapping is now mirrored on this axis.
+    if (sp._wandSource) {
+      sp._wandSource[axis === 'h' ? 'flippedH' : 'flippedV'] =
+        !sp._wandSource[axis === 'h' ? 'flippedH' : 'flippedV'];
+    }
+    updateSpriteEl(sp);
+    refreshThumb(sp);
+  };
+  newImg.src = dataURL;
+}
+
+function flipCharacterSkeleton(sp, axis) {
+  // Character joints are stored in a local coordinate space (the skeleton's vb).
+  // Mirror joint x/y positions, and swap left/right joint mappings.
+  const skel = sp.skeleton;
+  if (!skel || !skel.joints) return;
+  const vb = skel.vb || [100, 200];
+  const swapPairs = [
+    ['leftShoulder','rightShoulder'],
+    ['leftElbow','rightElbow'],
+    ['leftHand','rightHand'],
+    ['leftHip','rightHip'],
+    ['leftKnee','rightKnee'],
+    ['leftFoot','rightFoot'],
+  ];
+  const oldJoints = JSON.parse(JSON.stringify(skel.joints));
+  if (axis === 'h') {
+    // Swap left/right named joints first
+    for (const [a, b] of swapPairs) {
+      if (oldJoints[a] && oldJoints[b]) {
+        skel.joints[a] = oldJoints[b];
+        skel.joints[b] = oldJoints[a];
+      }
+    }
+    // Then mirror x coordinates
+    for (const k in skel.joints) {
+      skel.joints[k].x = vb[0] - skel.joints[k].x;
+    }
+  } else {
+    for (const k in skel.joints) {
+      skel.joints[k].y = vb[1] - skel.joints[k].y;
+    }
+  }
+}
+
+function flipArrow(sp, axis) {
+  const arr = sp.arrow;
+  if (!arr || !arr.points) return;
+  const vb = sp.arrowVB || [200, 100];
+  if (axis === 'h') {
+    arr.points = arr.points.map(p => ({ x: vb[0] - p.x, y: p.y }));
+  } else {
+    arr.points = arr.points.map(p => ({ x: p.x, y: vb[1] - p.y }));
+  }
+}
+
+function rotateSelected90() {
+  if (!selectedId) return;
+  const sp = sprites.find(s => s.id === selectedId);
+  if (!sp) return;
+  pushHistory();
+  if (sp.img && (!sp.type || sp.type === 'clipart')) {
+    rotateImageSprite90(sp);
+  } else if (sp.type === 'text') {
+    toast('Text cannot be rotated');
+    undoStack.pop();
+    return;
+  } else if (sp.type === 'character') {
+    // For characters we rotate joints 90° CW around the vb center.
+    rotateCharacterSkeleton90(sp);
+    // Swap aspect of the sprite
+    const oldW = sp.w; sp.w = sp.h; sp.h = oldW;
+    updateSpriteEl(sp);
+    refreshThumb(sp);
+  } else if (sp.type === 'arrow') {
+    rotateArrow90(sp);
+    const oldW = sp.w; sp.w = sp.h; sp.h = oldW;
+    updateSpriteEl(sp);
+    refreshThumb(sp);
+  }
+  toast('Rotated 90°');
+}
+
+function rotateImageSprite90(sp) {
+  const W = sp.img.naturalWidth || sp.img.width;
+  const H = sp.img.naturalHeight || sp.img.height;
+  // After 90° CW: new W = H, new H = W
+  const c = document.createElement('canvas');
+  c.width = H; c.height = W;
+  const ctx = c.getContext('2d');
+  ctx.save();
+  // Translate to new origin, rotate, draw
+  ctx.translate(H, 0);
+  ctx.rotate(Math.PI / 2);
+  ctx.drawImage(sp.img, 0, 0);
+  ctx.restore();
+  const dataURL = c.toDataURL('image/png');
+  const newImg = new Image();
+  newImg.onload = () => {
+    sp.img = newImg;
+    sp._dataURL = dataURL;
+    // Swap display dimensions to match new aspect
+    const oldW = sp.w, oldH = sp.h;
+    const cx = sp.x + oldW / 2, cy = sp.y + oldH / 2;
+    sp.w = oldH; sp.h = oldW;
+    sp.x = Math.round(cx - sp.w / 2);
+    sp.y = Math.round(cy - sp.h / 2);
+    // Swap origW/origH too
+    const oW = sp.origW; sp.origW = sp.origH; sp.origH = oW;
+    // Rotation invalidates the wand source mapping — clear it so we don't
+    // sample from the wrong place during refine.
+    if (sp._wandSource) sp._wandSource = null;
+    updateSpriteEl(sp);
+    refreshThumb(sp);
+  };
+  newImg.src = dataURL;
+}
+
+function rotateCharacterSkeleton90(sp) {
+  const skel = sp.skeleton;
+  if (!skel || !skel.joints) return;
+  const vb = skel.vb || [100, 200];
+  // 90° CW around the vb center: (x,y) → (vb[1] - y, x) — but we also swap vb dims
+  const cx = vb[0] / 2, cy = vb[1] / 2;
+  for (const k in skel.joints) {
+    const j = skel.joints[k];
+    const rx = j.x - cx, ry = j.y - cy;
+    // CW rotation: (x,y) → (y, -x)
+    const newX = ry + cy; // along new x axis (was old y)
+    const newY = -rx + cx;
+    j.x = newX; j.y = newY;
+  }
+  // Swap vb dimensions
+  skel.vb = [vb[1], vb[0]];
+}
+
+function rotateArrow90(sp) {
+  const arr = sp.arrow;
+  if (!arr || !arr.points) return;
+  const vb = sp.arrowVB || [200, 100];
+  const cx = vb[0] / 2, cy = vb[1] / 2;
+  arr.points = arr.points.map(p => {
+    const rx = p.x - cx, ry = p.y - cy;
+    return { x: ry + cy, y: -rx + cx };
+  });
+  sp.arrowVB = [vb[1], vb[0]];
+}
+
+// Context menu hooks
+function contextFlipH() {
+  if (_ctxTargetId) { selectSprite(_ctxTargetId); flipSelectedH(); }
+  hideSpriteContextMenu();
+}
+function contextFlipV() {
+  if (_ctxTargetId) { selectSprite(_ctxTargetId); flipSelectedV(); }
+  hideSpriteContextMenu();
+}
+function contextRotate90() {
+  if (_ctxTargetId) { selectSprite(_ctxTargetId); rotateSelected90(); }
+  hideSpriteContextMenu();
+}
+
+// ═══════════════════════════════════════════════════════════
+// EDGE REFINEMENT — full-screen overlay editor
+// ═══════════════════════════════════════════════════════════
+let refineState = null;
+// refineState = {
+//   sp,                    // target sprite
+//   workCanvas,            // working canvas at native pixel size — holds current edited cutout
+//   workCtx,
+//   sourceCanvas,          // null or canvas holding the wand source image at its native size
+//   sourceMap,             // { x, y, w, h, srcImgW, srcImgH } — where on the source this cutout came from
+//   displayScale,          // CSS pixels per source pixel
+//   tool: 'restore' | 'erase' | 'smooth',
+//   brushSize, brushHardness,
+//   lastPt: {x,y} | null,  // in canvas-pixel space
+//   strokeActive: false
+// };
+
+function contextRefineEdge() {
+  if (!_ctxTargetId) { hideSpriteContextMenu(); return; }
+  const sp = sprites.find(s => s.id === _ctxTargetId);
+  hideSpriteContextMenu();
+  startRefineForSprite(sp);
+}
+
+function startRefineSelected() {
+  if (!selectedId) return;
+  const sp = sprites.find(s => s.id === selectedId);
+  startRefineForSprite(sp);
+}
+
+function startRefineForSprite(sp) {
+  if (!sp || sp.type === 'text' || sp.type === 'character' ||
+      sp.type === 'arrow' || sp.type === 'clipart' || !sp.img) {
+    toast('Refine works on image cutouts only');
+    return;
+  }
+  // Bail out of any active modes that would conflict
+  if (wandMode) toggleWandMode();
+  if (cropActive) cancelCrop();
+  if (editMode) { editMode = false; updateEditMode(); }
+
+  const W = sp.img.naturalWidth || sp.img.width;
+  const H = sp.img.naturalHeight || sp.img.height;
+  const workCanvas = document.createElement('canvas');
+  workCanvas.width = W; workCanvas.height = H;
+  const workCtx = workCanvas.getContext('2d');
+  workCtx.drawImage(sp.img, 0, 0);
+
+  let sourceCanvas = null;
+  let sourceMap = null;
+  if (sp._wandSource && sp._wandSource.dataURL) {
+    const wsrc = sp._wandSource;
+    // Load source asynchronously; user can still erase + smooth before it loads
+    sourceCanvas = document.createElement('canvas');
+    sourceCanvas.width = wsrc.srcImgW;
+    sourceCanvas.height = wsrc.srcImgH;
+    const sourceImg = new Image();
+    sourceImg.onload = () => {
+      sourceCanvas.getContext('2d').drawImage(sourceImg, 0, 0);
+    };
+    sourceImg.onerror = () => {
+      sourceCanvas = null;
+      toast('Source image unavailable — erase only');
+    };
+    sourceImg.src = wsrc.dataURL;
+    sourceMap = {
+      x: wsrc.srcX, y: wsrc.srcY,
+      w: wsrc.srcW, h: wsrc.srcH,
+      srcImgW: wsrc.srcImgW, srcImgH: wsrc.srcImgH,
+      flippedH: !!wsrc.flippedH,
+      flippedV: !!wsrc.flippedV
+    };
+  }
+
+  refineState = {
+    sp, workCanvas, workCtx,
+    sourceCanvas, sourceMap,
+    displayScale: 1,
+    tool: 'restore',
+    brushSize: parseInt(document.getElementById('refine-brush-size').value, 10),
+    brushHardness: parseInt(document.getElementById('refine-brush-hardness').value, 10),
+    zoom: 100,
+    lastPt: null,
+    strokeActive: false,
+    sourceImgRef: null  // will be set after load
+  };
+  // Disable restore tool if no source
+  const restoreBtn = document.getElementById('refine-tool-restore');
+  if (!sourceMap) {
+    restoreBtn.classList.add('disabled');
+    restoreBtn.style.opacity = '0.4';
+    restoreBtn.title = 'Source image not available';
+    refineState.tool = 'erase';
+    setRefineTool('erase');
+  } else {
+    restoreBtn.classList.remove('disabled');
+    restoreBtn.style.opacity = '';
+    restoreBtn.title = 'Restore pixels from source';
+  }
+
+  // Render initial display
+  setupRefineDisplay();
+  document.getElementById('refine-info').textContent =
+    `${W} × ${H} px` + (sourceMap ? '' : ' · no source');
+  document.getElementById('refine-overlay').classList.add('show');
+}
+
+function setupRefineDisplay() {
+  if (!refineState) return;
+  const { workCanvas } = refineState;
+  const stage = document.getElementById('refine-stage');
+  const wrap = document.getElementById('refine-canvas-wrap');
+  const displayCanvas = document.getElementById('refine-canvas');
+  // Fit work canvas into stage at zoom%
+  const stageW = stage.clientWidth - 40;
+  const stageH = stage.clientHeight - 40;
+  let scale = Math.min(stageW / workCanvas.width, stageH / workCanvas.height, 4);
+  if (scale < 0.05) scale = 0.05;
+  scale = scale * (refineState.zoom / 100);
+  refineState.displayScale = scale;
+  const cw = Math.round(workCanvas.width * scale);
+  const ch = Math.round(workCanvas.height * scale);
+  displayCanvas.width = workCanvas.width;
+  displayCanvas.height = workCanvas.height;
+  displayCanvas.style.width = cw + 'px';
+  displayCanvas.style.height = ch + 'px';
+  wrap.style.width = cw + 'px';
+  wrap.style.height = ch + 'px';
+  redrawRefineDisplay();
+}
+
+function redrawRefineDisplay() {
+  if (!refineState) return;
+  const display = document.getElementById('refine-canvas');
+  const ctx = display.getContext('2d');
+  ctx.clearRect(0, 0, display.width, display.height);
+  ctx.drawImage(refineState.workCanvas, 0, 0);
+}
+
+function setRefineTool(tool) {
+  if (!refineState) return;
+  if (tool === 'restore' && !refineState.sourceMap) {
+    toast('Source unavailable for restore'); return;
+  }
+  refineState.tool = tool;
+  document.querySelectorAll('.refine-tool-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('refine-tool-' + tool).classList.add('active');
+  const overlay = document.getElementById('refine-overlay');
+  overlay.classList.remove('tool-erase','tool-smooth','tool-restore');
+  overlay.classList.add('tool-' + tool);
+}
+
+// Brush size / hardness / zoom slider listeners
+document.getElementById('refine-brush-size').addEventListener('input', e => {
+  document.getElementById('refine-brush-size-val').textContent = e.target.value;
+  if (refineState) refineState.brushSize = parseInt(e.target.value, 10);
+});
+document.getElementById('refine-brush-hardness').addEventListener('input', e => {
+  document.getElementById('refine-brush-hardness-val').textContent = e.target.value;
+  if (refineState) refineState.brushHardness = parseInt(e.target.value, 10);
+});
+document.getElementById('refine-zoom').addEventListener('input', e => {
+  document.getElementById('refine-zoom-val').textContent = e.target.value + '%';
+  if (refineState) { refineState.zoom = parseInt(e.target.value, 10); setupRefineDisplay(); }
+});
+
+// Brush operations on the working canvas. All operations happen in
+// working-canvas pixel space, which equals the cutout's native resolution.
+function brushStamp(cx, cy) {
+  const st = refineState;
+  if (!st) return;
+  const r = st.brushSize / 2;
+  const hardness = st.brushHardness / 100;
+  const ctx = st.workCtx;
+  // Bounding region
+  const minX = Math.max(0, Math.floor(cx - r - 1));
+  const maxX = Math.min(st.workCanvas.width - 1, Math.ceil(cx + r + 1));
+  const minY = Math.max(0, Math.floor(cy - r - 1));
+  const maxY = Math.min(st.workCanvas.height - 1, Math.ceil(cy + r + 1));
+  if (maxX < minX || maxY < minY) return;
+  const w = maxX - minX + 1, h = maxY - minY + 1;
+  const workData = ctx.getImageData(minX, minY, w, h);
+  const wd = workData.data;
+
+  let srcData = null;
+  if (st.tool === 'restore' && st.sourceCanvas && st.sourceMap) {
+    // Map cutout pixel (px, py) to source pixel.
+    // The cutout was extracted at offset (srcX, srcY) from the source.
+    // If the user has flipped the cutout, the mapping is mirrored.
+    const sm = st.sourceMap;
+    // Compute the source rect we need
+    const fxOf = (px) => {
+      let cutX = px;
+      if (sm.flippedH) cutX = sm.w - 1 - px;
+      return sm.x + cutX;
+    };
+    const fyOf = (py) => {
+      let cutY = py;
+      if (sm.flippedV) cutY = sm.h - 1 - py;
+      return sm.y + cutY;
+    };
+    // Determine source bounding box for this stamp
+    const sxs = [fxOf(minX - sm.x + sm.x - sm.x + minX), fxOf(maxX - sm.x + sm.x - sm.x + maxX)];
+    // Simpler: iterate per pixel
+    try {
+      // Compute corner source coords
+      const sxa = fxOf(minX), sxb = fxOf(maxX);
+      const sya = fyOf(minY), syb = fyOf(maxY);
+      const smX = Math.min(sxa, sxb), smY = Math.min(sya, syb);
+      const smW = Math.abs(sxb - sxa) + 1, smH = Math.abs(syb - sya) + 1;
+      if (smX >= 0 && smY >= 0 && smX + smW <= sm.srcImgW && smY + smH <= sm.srcImgH) {
+        srcData = st.sourceCanvas.getContext('2d').getImageData(smX, smY, smW, smH);
+      }
+    } catch (e) { srcData = null; }
+  }
+
+  for (let py = 0; py < h; py++) {
+    for (let px = 0; px < w; px++) {
+      const dx = (minX + px) - cx;
+      const dy = (minY + py) - cy;
+      const d = Math.sqrt(dx*dx + dy*dy);
+      if (d > r) continue;
+      // Soft falloff: hardness controls where the falloff starts
+      let str;
+      if (d <= r * hardness) {
+        str = 1;
+      } else {
+        const t = (d - r * hardness) / (r * (1 - hardness) + 0.001);
+        str = Math.max(0, 1 - t);
+      }
+      str = Math.min(1, str);
+      const i = (py * w + px) * 4;
+      if (st.tool === 'erase') {
+        // Reduce alpha by str
+        wd[i+3] = Math.round(wd[i+3] * (1 - str));
+      } else if (st.tool === 'restore' && srcData) {
+        // Sample from source
+        const sm = st.sourceMap;
+        const srcPx = (minX + px);
+        const srcPy = (minY + py);
+        const sxa = sm.flippedH ? (sm.x + sm.w - 1 - srcPx) : (sm.x + srcPx);
+        const sya = sm.flippedV ? (sm.y + sm.h - 1 - srcPy) : (sm.y + srcPy);
+        // Find index within srcData
+        const srcMinX = Math.min(
+          sm.flippedH ? (sm.x + sm.w - 1 - minX) : (sm.x + minX),
+          sm.flippedH ? (sm.x + sm.w - 1 - maxX) : (sm.x + maxX)
+        );
+        const srcMinY = Math.min(
+          sm.flippedV ? (sm.y + sm.h - 1 - minY) : (sm.y + minY),
+          sm.flippedV ? (sm.y + sm.h - 1 - maxY) : (sm.y + maxY)
+        );
+        const lx = sxa - srcMinX;
+        const ly = sya - srcMinY;
+        if (lx >= 0 && ly >= 0 && lx < srcData.width && ly < srcData.height) {
+          const si = (ly * srcData.width + lx) * 4;
+          const sr = srcData.data[si], sg = srcData.data[si+1], sb = srcData.data[si+2], sa = srcData.data[si+3];
+          // Blend toward source by str
+          const oldA = wd[i+3];
+          const newA = Math.max(oldA, Math.round(sa * str));
+          // If working pixel is transparent, just take source RGB.
+          // Otherwise blend RGB by str.
+          if (oldA < 8) {
+            wd[i] = sr; wd[i+1] = sg; wd[i+2] = sb; wd[i+3] = newA;
+          } else {
+            wd[i]   = Math.round(wd[i]   * (1-str) + sr * str);
+            wd[i+1] = Math.round(wd[i+1] * (1-str) + sg * str);
+            wd[i+2] = Math.round(wd[i+2] * (1-str) + sb * str);
+            wd[i+3] = newA;
+          }
+        }
+      } else if (st.tool === 'smooth') {
+        // Smooth: blend alpha with neighbor average (cheap box blur on alpha only)
+        // Skip if at the very edge to avoid out-of-bounds
+        if (minX + px > 0 && minX + px < st.workCanvas.width - 1 &&
+            minY + py > 0 && minY + py < st.workCanvas.height - 1) {
+          // We need surrounding pixels from the full canvas, but we only have
+          // wd in our local region. Easiest correct approach: do a localized
+          // smooth using local data when possible.
+          let sumA = 0, cnt = 0;
+          for (let oy = -1; oy <= 1; oy++) {
+            for (let ox = -1; ox <= 1; ox++) {
+              const lx = px + ox, ly = py + oy;
+              if (lx < 0 || ly < 0 || lx >= w || ly >= h) continue;
+              const li = (ly * w + lx) * 4;
+              sumA += wd[li+3]; cnt++;
+            }
+          }
+          const avg = sumA / cnt;
+          wd[i+3] = Math.round(wd[i+3] * (1 - str) + avg * str);
+        }
+      }
+    }
+  }
+  ctx.putImageData(workData, minX, minY);
+}
+
+function brushStroke(fromX, fromY, toX, toY) {
+  // Stamp at intervals along the line so dragging produces a continuous stroke
+  const r = refineState.brushSize / 2;
+  const step = Math.max(1, r / 3);
+  const dx = toX - fromX, dy = toY - fromY;
+  const dist = Math.sqrt(dx*dx + dy*dy);
+  if (dist < 0.5) { brushStamp(toX, toY); return; }
+  const steps = Math.ceil(dist / step);
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    brushStamp(fromX + dx * t, fromY + dy * t);
+  }
+}
+
+// Pointer handling on the refine canvas
+function refinePointer(clientX, clientY, type) {
+  if (!refineState) return null;
+  const display = document.getElementById('refine-canvas');
+  const rect = display.getBoundingClientRect();
+  const px = (clientX - rect.left) / refineState.displayScale;
+  const py = (clientY - rect.top) / refineState.displayScale;
+  return { x: px, y: py };
+}
+
+(function setupRefineCanvasEvents() {
+  const display = document.getElementById('refine-canvas');
+  const preview = document.getElementById('refine-brush-preview');
+
+  function showBrushAt(clientX, clientY) {
+    const stage = document.getElementById('refine-stage');
+    const sRect = stage.getBoundingClientRect();
+    const d = refineState.brushSize * refineState.displayScale;
+    preview.style.display = 'block';
+    preview.style.width = d + 'px';
+    preview.style.height = d + 'px';
+    preview.style.left = (clientX - sRect.left - d/2) + 'px';
+    preview.style.top = (clientY - sRect.top - d/2) + 'px';
+  }
+
+  display.addEventListener('mousemove', e => {
+    if (!refineState) return;
+    showBrushAt(e.clientX, e.clientY);
+    if (refineState.strokeActive) {
+      const pt = refinePointer(e.clientX, e.clientY);
+      if (pt && refineState.lastPt) brushStroke(refineState.lastPt.x, refineState.lastPt.y, pt.x, pt.y);
+      else if (pt) brushStamp(pt.x, pt.y);
+      refineState.lastPt = pt;
+      redrawRefineDisplay();
+    }
+  });
+  display.addEventListener('mousedown', e => {
+    if (!refineState) return;
+    e.preventDefault();
+    refineState.strokeActive = true;
+    const pt = refinePointer(e.clientX, e.clientY);
+    refineState.lastPt = pt;
+    if (pt) brushStamp(pt.x, pt.y);
+    redrawRefineDisplay();
+  });
+  document.addEventListener('mouseup', () => {
+    if (refineState) { refineState.strokeActive = false; refineState.lastPt = null; }
+  });
+  display.addEventListener('mouseleave', () => { preview.style.display = 'none'; });
+
+  // Touch
+  display.addEventListener('touchstart', e => {
+    if (!refineState) return;
+    if (e.touches.length !== 1) return;
+    e.preventDefault();
+    const t = e.touches[0];
+    showBrushAt(t.clientX, t.clientY);
+    refineState.strokeActive = true;
+    const pt = refinePointer(t.clientX, t.clientY);
+    refineState.lastPt = pt;
+    if (pt) brushStamp(pt.x, pt.y);
+    redrawRefineDisplay();
+  }, { passive: false });
+  display.addEventListener('touchmove', e => {
+    if (!refineState) return;
+    if (e.touches.length !== 1) return;
+    e.preventDefault();
+    const t = e.touches[0];
+    showBrushAt(t.clientX, t.clientY);
+    if (refineState.strokeActive) {
+      const pt = refinePointer(t.clientX, t.clientY);
+      if (pt && refineState.lastPt) brushStroke(refineState.lastPt.x, refineState.lastPt.y, pt.x, pt.y);
+      else if (pt) brushStamp(pt.x, pt.y);
+      refineState.lastPt = pt;
+      redrawRefineDisplay();
+    }
+  }, { passive: false });
+  display.addEventListener('touchend', () => {
+    if (refineState) { refineState.strokeActive = false; refineState.lastPt = null; }
+  });
+})();
+
+function cancelRefine() {
+  document.getElementById('refine-overlay').classList.remove('show');
+  refineState = null;
+}
+
+function applyRefine() {
+  if (!refineState) return;
+  pushHistory();
+  const { sp, workCanvas } = refineState;
+  const dataURL = workCanvas.toDataURL('image/png');
+  const img = new Image();
+  img.onload = () => {
+    sp.img = img;
+    sp._dataURL = dataURL;
+    updateSpriteEl(sp);
+    refreshThumb(sp);
+    toast('Edge refined');
+  };
+  img.src = dataURL;
+  cancelRefine();
+}
+
+// Enable/disable the props-panel Refine Edge buttons based on selection
+const _origUpdateProps_T2 = updateProps;
+updateProps = function() {
+  _origUpdateProps_T2();
+  const sp = selectedId ? sprites.find(s => s.id === selectedId) : null;
+  const canRefine = sp && sp.img && !sp.type;
+  const b1 = document.getElementById('prop-refine-btn');
+  const b2 = document.getElementById('prop-refine-btn-m');
+  if (b1) b1.style.display = canRefine ? '' : 'none';
+  if (b2) b2.style.display = canRefine ? '' : 'none';
+};
+
+// ═══════════════════════════════════════════════════════════
+// MULTI-PAGE DOCUMENT
+// ═══════════════════════════════════════════════════════════
+// Pages are stored as serialized snapshots. Switching pages = save the
+// current live state into pages[currentPage], then restore the target.
+
+let pages = [];
+let currentPage = 0;
+let _pageIdCounter = 0;
+
+function initPages() {
+  pages = [{
+    id: ++_pageIdCounter,
+    name: 'Page 1'
+  }];
+  currentPage = 0;
+  renderPageTabs();
+}
+
+function snapshotCurrentPage() {
+  // Build a snapshot of the live state to store in pages[currentPage]
+  const p = pages[currentPage];
+  if (!p) return;
+  p.sheetW = sheetW;
+  p.sheetH = sheetH;
+  p.bgColor = bgColor;
+  p.transparent = transparent;
+  p.panelGrid = panelGrid ? { ...panelGrid } : null;
+  p.sprites = sprites.map(snapshotSprite);
+  p.idCounter = idCounter;
+  // Don't save selectedId — selection doesn't persist across page switches
+}
+
+function loadPageInto(pageIdx) {
+  const p = pages[pageIdx];
+  if (!p) return;
+  _suppressHistory = true;
+  // Clear current
+  sprites.slice().forEach(sp => _origDeleteSpriteById(sp.id));
+  sprites.length = 0;
+  selectedId = null;
+  // If this page has saved state, restore it. Otherwise treat as blank with defaults.
+  if (p.sheetW) {
+    sheetW = p.sheetW; sheetH = p.sheetH;
+    bgColor = p.bgColor; transparent = !!p.transparent;
+    idCounter = p.idCounter || 0;
+    document.getElementById('sheet-w').value = sheetW;
+    document.getElementById('sheet-h').value = sheetH;
+    const swM = document.getElementById('sheet-w-m'); if (swM) swM.value = sheetW;
+    const shM = document.getElementById('sheet-h-m'); if (shM) shM.value = sheetH;
+    setBgColor(bgColor);
+    sheetCanvas.width = sheetW; sheetCanvas.height = sheetH;
+    sheetCanvas.style.width = sheetW+'px'; sheetCanvas.style.height = sheetH+'px';
+    interactLayer.style.width = sheetW+'px'; interactLayer.style.height = sheetH+'px';
+    drawSheet();
+    panelGrid = p.panelGrid ? { ...p.panelGrid } : null;
+    renderPanelGrid();
+    // Restore sprites
+    const promises = (p.sprites || []).map(s => restoreSpriteFromSnapshot(s));
+    Promise.all(promises).then(() => {
+      updateControls();
+      updateDropZone();
+      fitView();
+      _suppressHistory = false;
+    });
+  } else {
+    // Brand new page: keep defaults
+    initSheet();
+    panelGrid = null;
+    renderPanelGrid();
+    updateControls();
+    updateDropZone();
+    fitView();
+    _suppressHistory = false;
+  }
+}
+
+function switchToPage(idx) {
+  if (idx < 0 || idx >= pages.length) return;
+  if (idx === currentPage) return;
+  snapshotCurrentPage();
+  // Push to undo stack so page switching is undoable
+  // (we don't use pushHistory because that wraps current state only)
+  currentPage = idx;
+  loadPageInto(idx);
+  renderPageTabs();
+}
+
+function addPage() {
+  pushHistory();
+  snapshotCurrentPage();
+  pages.push({
+    id: ++_pageIdCounter,
+    name: 'Page ' + (pages.length + 1)
+  });
+  currentPage = pages.length - 1;
+  loadPageInto(currentPage);
+  renderPageTabs();
+  toast('Added ' + pages[currentPage].name);
+}
+
+function deletePage(idx) {
+  if (pages.length <= 1) { toast('Cannot delete the last page'); return; }
+  const p = pages[idx];
+  if (!confirm(`Delete "${p.name}"? This cannot be undone.`)) return;
+  pages.splice(idx, 1);
+  if (currentPage >= pages.length) currentPage = pages.length - 1;
+  else if (currentPage > idx) currentPage--;
+  else if (currentPage === idx) {
+    // We deleted the current page; load whatever's now at currentPage
+  }
+  loadPageInto(currentPage);
+  renderPageTabs();
+  toast('Page deleted');
+}
+
+function renamePage(idx, newName) {
+  const p = pages[idx];
+  if (!p) return;
+  p.name = (newName || '').trim() || ('Page ' + (idx + 1));
+  renderPageTabs();
+}
+
+function renderPageTabs() {
+  const tabs = document.getElementById('page-tabs');
+  // Clear all tabs except the + button
+  const addBtn = document.getElementById('page-add-btn');
+  const info = document.getElementById('page-info');
+  tabs.innerHTML = '';
+  pages.forEach((p, i) => {
+    const tab = document.createElement('div');
+    tab.className = 'page-tab' + (i === currentPage ? ' active' : '');
+    tab.dataset.idx = i;
+    const name = document.createElement('span');
+    name.className = 'page-tab-name';
+    name.textContent = p.name;
+    name.title = p.name + ' — double-click to rename';
+    name.addEventListener('dblclick', e => {
+      e.stopPropagation();
+      startInlineRename(name, i);
+    });
+    tab.appendChild(name);
+    if (pages.length > 1) {
+      const close = document.createElement('span');
+      close.className = 'page-tab-close';
+      close.textContent = '✕';
+      close.title = 'Delete page';
+      close.addEventListener('click', e => {
+        e.stopPropagation();
+        deletePage(i);
+      });
+      tab.appendChild(close);
+    }
+    tab.addEventListener('click', () => switchToPage(i));
+    tabs.appendChild(tab);
+  });
+  tabs.appendChild(addBtn);
+  tabs.appendChild(info);
+  info.textContent = `${currentPage + 1} / ${pages.length}`;
+}
+
+function startInlineRename(nameEl, idx) {
+  nameEl.classList.add('editing');
+  nameEl.contentEditable = 'true';
+  nameEl.focus();
+  // Select all text
+  const range = document.createRange();
+  range.selectNodeContents(nameEl);
+  const sel = window.getSelection();
+  sel.removeAllRanges(); sel.addRange(range);
+  function finish() {
+    nameEl.classList.remove('editing');
+    nameEl.contentEditable = 'false';
+    nameEl.removeEventListener('blur', finish);
+    nameEl.removeEventListener('keydown', onKey);
+    renamePage(idx, nameEl.textContent);
+  }
+  function onKey(e) {
+    if (e.key === 'Enter') { e.preventDefault(); nameEl.blur(); }
+    if (e.key === 'Escape') { nameEl.textContent = pages[idx].name; nameEl.blur(); }
+  }
+  nameEl.addEventListener('blur', finish);
+  nameEl.addEventListener('keydown', onKey);
+}
+
+// Hook saveProject to include all pages
+const _origSaveProject = saveProject;
+saveProject = function() {
+  // Snapshot current page first
+  snapshotCurrentPage();
+  const project = {
+    version: 2,
+    format: 'storyboard-composer',
+    timestamp: new Date().toISOString(),
+    pages: pages.map(p => ({
+      id: p.id, name: p.name,
+      sheetW: p.sheetW || sheetW,
+      sheetH: p.sheetH || sheetH,
+      bgColor: p.bgColor || bgColor,
+      transparent: p.transparent || false,
+      panelGrid: p.panelGrid || null,
+      idCounter: p.idCounter || 0,
+      sprites: p.sprites || []
+    })),
+    currentPage,
+    pageIdCounter: _pageIdCounter
+  };
+  const blob = new Blob([JSON.stringify(project, null, 2)], { type: 'application/json' });
+  const ts = new Date();
+  const fname = `storyboard_${ts.getFullYear()}${String(ts.getMonth()+1).padStart(2,'0')}${String(ts.getDate()).padStart(2,'0')}_${String(ts.getHours()).padStart(2,'0')}${String(ts.getMinutes()).padStart(2,'0')}.storyboard.json`;
+  triggerDownload(blob, fname);
+  toast(`Saved · ${pages.length} page${pages.length === 1 ? '' : 's'}`);
+};
+
+// Project file load — supports both v1 (single-page) and v2 (multi-page)
+document.getElementById('project-input').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const project = JSON.parse(ev.target.result);
+      if (project.format !== 'storyboard-composer') {
+        toast('Not a storyboard file');
+        return;
+      }
+      if (sprites.length > 0 || pages.length > 1) {
+        if (!confirm('Loading will replace your current document. Continue?')) return;
+      }
+      _suppressHistory = true;
+      undoStack.length = 0; redoStack.length = 0;
+      if (project.version === 2 && project.pages) {
+        // Multi-page format
+        pages = project.pages.map(p => ({
+          id: p.id, name: p.name,
+          sheetW: p.sheetW, sheetH: p.sheetH,
+          bgColor: p.bgColor, transparent: p.transparent,
+          panelGrid: p.panelGrid,
+          idCounter: p.idCounter || 0,
+          sprites: p.sprites || []
+        }));
+        _pageIdCounter = project.pageIdCounter || pages.length;
+        currentPage = Math.max(0, Math.min(project.currentPage || 0, pages.length - 1));
+        loadPageInto(currentPage);
+        renderPageTabs();
+      } else {
+        // v1 single-page: wrap into one page
+        pages = [{
+          id: ++_pageIdCounter,
+          name: 'Page 1',
+          sheetW: project.sheetW, sheetH: project.sheetH,
+          bgColor: project.bgColor, transparent: project.transparent,
+          panelGrid: project.panelGrid,
+          idCounter: project.idCounter || 0,
+          sprites: project.sprites || []
+        }];
+        currentPage = 0;
+        loadPageInto(0);
+        renderPageTabs();
+      }
+      updateHistoryButtons();
+      toast(`Loaded · ${pages.length} page${pages.length === 1 ? '' : 's'}`);
+    } catch (err) {
+      console.error(err);
+      toast('Failed to load: ' + err.message);
+      _suppressHistory = false;
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+// Hook clearAll to ask if user wants to clear current page or all pages
+const _clearAllPreMulti = clearAll;
+clearAll = function() {
+  if (!sprites.length && pages.length === 1) return;
+  if (pages.length > 1) {
+    if (!confirm('Clear all sprites on the current page? (Other pages are not affected. Use Ctrl+Z to undo.)')) return;
+    pushHistory();
+    // Just clear sprites on this page
+    sprites.slice().forEach(sp => _origDeleteSpriteById(sp.id));
+    sprites.length = 0;
+    selectedId = null;
+    panelGrid = null;
+    renderPanelGrid();
+    updateControls();
+    updateDropZone();
+    toast('Page cleared');
+  } else {
+    // Single page, use original behavior
+    _clearAllPreMulti();
+  }
+};
+
+// PDF export across all pages
+const _origExportPDF = exportPDF;
+exportPDF = async function() {
+  if (pages.length === 1) {
+    return _origExportPDF();
+  }
+  // Multi-page PDF: snapshot current page, then render each page sequentially
+  snapshotCurrentPage();
+  const savedCurrent = currentPage;
+  toast('Building PDF…');
+  // Build per-page flat canvases
+  const pageCanvases = [];
+  for (let i = 0; i < pages.length; i++) {
+    // Switch to each page silently
+    _suppressHistory = true;
+    currentPage = i;
+    await new Promise(resolve => {
+      loadPageInto(i);
+      // loadPageInto kicks an async Promise.all internally; wait for sprites to settle
+      setTimeout(resolve, 250);
+    });
+    const flat = await buildFlatCanvas();
+    pageCanvases.push({ canvas: flat, w: sheetW, h: sheetH, bg: bgColor, transparent });
+  }
+  // Restore page
+  currentPage = savedCurrent;
+  loadPageInto(savedCurrent);
+  _suppressHistory = false;
+  // Build the multi-page PDF blob
+  const blob = await buildMultiPagePDF(pageCanvases);
+  triggerDownload(blob, 'storyboard.pdf');
+  toast(`PDF exported · ${pageCanvases.length} pages`);
+};
+
+// Build a minimal multi-page PDF where each page is a JPEG-embedded image
+async function buildMultiPagePDF(pageCanvases) {
+  // Reuse the existing PDF helpers (writeObj-style) — easier to inline build here.
+  const PX_TO_PT = 72/96;
+  let pdf = '%PDF-1.4\n';
+  const offsets = {};
+  let objId = 0;
+  const objStrings = [];
+
+  function addObj(body) {
+    objId++;
+    offsets[objId] = -1; // placeholder; computed below
+    objStrings.push({ id: objId, body });
+    return objId;
+  }
+
+  // 1: Catalog -> 2: Pages
+  const catalogId = addObj('<< /Type /Catalog /Pages 2 0 R >>');
+  // 2: Pages
+  // We'll fill kids after creating page objects
+  const pagesPlaceholder = { id: ++objId, body: '' };
+  offsets[pagesPlaceholder.id] = -1;
+  objStrings.push(pagesPlaceholder);
+  const pagesId = pagesPlaceholder.id;
+
+  // For each page, create: image object, content stream, page object
+  const pageObjIds = [];
+  for (let i = 0; i < pageCanvases.length; i++) {
+    const pc = pageCanvases[i];
+    const w = pc.w * PX_TO_PT, h = pc.h * PX_TO_PT;
+    const jpegDataURL = pc.canvas.toDataURL('image/jpeg', 0.92);
+    const b64 = jpegDataURL.split(',')[1];
+    const imgId = addObj(`<< /Type /XObject /Subtype /Image /Width ${pc.canvas.width} /Height ${pc.canvas.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${atob(b64).length} >>\nstream\n[IMG:${b64}]\nendstream`);
+    const contentStr = `q\n${w} 0 0 ${h} 0 0 cm\n/Img${i} Do\nQ\n`;
+    const contentId = addObj(`<< /Length ${contentStr.length} >>\nstream\n${contentStr}endstream`);
+    const pageObjId = addObj(`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${w} ${h}] /Resources << /XObject << /Img${i} ${imgId} 0 R >> >> /Contents ${contentId} 0 R >>`);
+    pageObjIds.push(pageObjId);
+  }
+  // Fill in pages object
+  pagesPlaceholder.body = `<< /Type /Pages /Kids [${pageObjIds.map(id => id + ' 0 R').join(' ')}] /Count ${pageObjIds.length} >>`;
+
+  // Now write everything out, computing offsets
+  for (const o of objStrings) {
+    offsets[o.id] = pdf.length;
+    pdf += `${o.id} 0 obj\n${o.body}\nendobj\n`;
+  }
+  const xrefOff = pdf.length;
+  pdf += `xref\n0 ${objId+1}\n0000000000 65535 f \n`;
+  for (let i = 1; i <= objId; i++) {
+    pdf += `${String(offsets[i]).padStart(10,'0')} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objId+1} /Root ${catalogId} 0 R >>\nstartxref\n${xrefOff}\n%%EOF`;
+
+  // Replace [IMG:b64] markers with actual binary bytes
+  const parts = [];
+  let remaining = pdf;
+  while (true) {
+    const idx = remaining.search(/\[IMG:[A-Za-z0-9+/=]+\]/);
+    if (idx === -1) break;
+    parts.push(new TextEncoder().encode(remaining.slice(0, idx)));
+    const m = remaining.slice(idx).match(/^\[IMG:([A-Za-z0-9+/=]+)\]/);
+    const b64 = m[1];
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    parts.push(bytes);
+    remaining = remaining.slice(idx + m[0].length);
+  }
+  parts.push(new TextEncoder().encode(remaining));
+  const total = parts.reduce((a,p) => a + p.byteLength, 0);
+  const out = new Uint8Array(total);
+  let off = 0;
+  for (const p of parts) { out.set(p, off); off += p.byteLength; }
+  return new Blob([out], { type: 'application/pdf' });
+}
+
+// Hook doExport's PDF path to use our multi-page version when needed
+// (doExport calls exportPDF directly, which we've already overridden above.)
+
+// ═══════════════════════════════════════════════════════════
 // BOOT
 // ═══════════════════════════════════════════════════════════
 initSheet();
@@ -5000,6 +6318,7 @@ updateProps();
 buildLibrary();
 renderPanelGrid();
 updateHistoryButtons();
+initPages();
 // Edit button starts disabled until a vector sprite is selected
 const _editBtn0 = document.getElementById('edit-btn');
 if (_editBtn0) _editBtn0.disabled = true;
